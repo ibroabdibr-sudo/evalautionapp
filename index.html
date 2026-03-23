@@ -5,33 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EAUH Resident Evaluation</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         .section { display: none; }
         .form-card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
-        .sync-status { position: fixed; bottom: 10px; right: 10px; padding: 8px 12px; border-radius: 5px; font-size: 12px; z-index: 1000; cursor: pointer; font-weight: bold; }
-        .loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10000; text-align: center; }
+        .sync-status { position: fixed; bottom: 10px; right: 10px; padding: 8px 12px; border-radius: 5px; font-size: 12px; z-index: 1000; font-weight: bold; }
         .hidden { display: none; }
-        .competency-desc { font-size: 0.85em; color: #555; margin-top: 4px; }
-        .radio-group { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        .student-photo-thumb { max-width: 60px; max-height: 60px; object-fit: cover; border-radius: 4px; }
-        .tab-btn, .eval-tab-btn { cursor: pointer; }
-        input[type="number"] { width: 70px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
+        button { cursor: pointer; }
     </style>
 </head>
 <body class="bg-gray-100 p-4">
 <div class="container mx-auto max-w-7xl">
-    <div id="loadingIndicator" class="loading hidden"><div class="text-blue-600 text-xl">Loading...</div><div class="text-gray-500 text-sm mt-2">Please wait</div></div>
-    <div id="syncStatus" class="sync-status" style="background-color:#ff9800;">🟡 Initializing...</div>
+    <div id="syncStatus" class="sync-status" style="background-color:#ff9800;">🟡 Connecting...</div>
     
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold text-blue-800">EAUH Resident Evaluation</h1>
-        <div id="authDisplay" class="flex items-center gap-2">
+        <div id="authDisplay">
             <span id="currentUser" class="text-gray-700"></span>
             <button id="logoutBtn" class="bg-red-500 text-white px-3 py-1 rounded text-sm hidden">Logout</button>
         </div>
@@ -56,29 +48,26 @@
         <button id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Login</button>
         <div class="text-center text-sm text-gray-500 mt-4">
             <p><strong>Demo Accounts:</strong></p>
-            <p>Admin: admin / 4141</p>
-            <p>Evaluator: eval1 / pass</p>
-            <p>Student: student1 / pass</p>
+            <p>👑 Admin: admin / 4141</p>
+            <p>📝 Evaluator: eval1 / pass</p>
+            <p>🎓 Student: student1 / pass</p>
         </div>
     </div>
 
-    <!-- Admin Dashboard (Simplified but functional) -->
+    <!-- Admin Dashboard -->
     <div id="adminSection" class="section">
         <div class="form-card">
-            <h2 class="text-xl font-semibold mb-4">Admin Dashboard</h2>
-            <p class="text-green-600 mb-4">✅ Connected to Supabase</p>
+            <h2 class="text-xl font-semibold mb-4">👑 Admin Dashboard</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <h3 class="font-semibold">Users</h3>
-                    <div id="adminUserList" class="mt-2 text-sm"></div>
+                    <h3 class="font-semibold">📋 Users</h3>
+                    <div id="adminUserList" class="mt-2 text-sm max-h-96 overflow-y-auto"></div>
                 </div>
                 <div>
-                    <h3 class="font-semibold">Statistics</h3>
+                    <h3 class="font-semibold">📊 Statistics</h3>
                     <div id="adminStats" class="mt-2 text-sm"></div>
+                    <button id="refreshBtn" class="bg-blue-500 text-white px-3 py-1 rounded text-sm mt-4">Refresh Data</button>
                 </div>
-            </div>
-            <div class="mt-4">
-                <button id="refreshAdminBtn" class="bg-blue-500 text-white px-3 py-1 rounded text-sm">Refresh Data</button>
             </div>
         </div>
     </div>
@@ -86,16 +75,16 @@
     <!-- Student Dashboard -->
     <div id="studentSection" class="section">
         <div class="form-card">
-            <h2 class="text-xl font-semibold mb-4">Student Dashboard</h2>
-            <div id="studentDashboardContent" class="space-y-4"></div>
+            <h2 class="text-xl font-semibold mb-4">🎓 Student Dashboard</h2>
+            <div id="studentContent" class="space-y-4"></div>
         </div>
     </div>
 
     <!-- Evaluator Dashboard -->
     <div id="evaluatorSection" class="section">
         <div class="form-card">
-            <h2 class="text-xl font-semibold mb-4">Evaluator Dashboard</h2>
-            <div id="evaluatorDashboardContent" class="space-y-4"></div>
+            <h2 class="text-xl font-semibold mb-4">📝 Evaluator Dashboard</h2>
+            <div id="evaluatorContent" class="space-y-4"></div>
         </div>
     </div>
 </div>
@@ -106,93 +95,220 @@ const SUPABASE_URL = 'https://rnlutvfzmnnxihgwcymw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJubHV0dmZ6bW5ueGloZ3djeW13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjAxMDcsImV4cCI6MjA4OTc5NjEwN30.2RfFEacIgG2XnvVRBFjcTELO26nt4T3zJP3v8-0JgTM';
 
 // Global variables
-let supabaseClient;
+let supabase;
 let currentUser = null;
-let usersData = [];
-let studentsData = [];
-let evaluatorsData = [];
-let dopsData = [];
-let monthlyData = [];
-let presentationData = [];
+let users = [];
+let students = [];
+let evaluators = [];
+let dopsEvals = [];
+let monthlyEvals = [];
+let presentationEvals = [];
 let attendanceData = [];
-let gradesData = [];
+let finalGrades = [];
 
-// Helper functions
+// Update status display
 function updateStatus(message, color) {
-    const statusDiv = document.getElementById('syncStatus');
-    if (statusDiv) {
-        statusDiv.innerHTML = message;
-        statusDiv.style.backgroundColor = color;
+    const el = document.getElementById('syncStatus');
+    if (el) {
+        el.innerHTML = message;
+        el.style.backgroundColor = color;
     }
 }
 
-function showLoading(show) {
-    const loader = document.getElementById('loadingIndicator');
-    if (loader) {
-        if (show) loader.classList.remove('hidden');
-        else loader.classList.add('hidden');
-    }
-}
-
+// Show/hide sections
 function showSection(sectionId) {
-    const sections = ['loginSection', 'adminSection', 'studentSection', 'evaluatorSection'];
-    sections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    const target = document.getElementById(sectionId);
-    if (target) target.style.display = 'block';
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'none';
+    document.getElementById('studentSection').style.display = 'none';
+    document.getElementById('evaluatorSection').style.display = 'none';
+    document.getElementById(sectionId).style.display = 'block';
 }
 
 // Load all data from Supabase
 async function loadAllData() {
-    showLoading(true);
     updateStatus('Loading data...', '#ff9800');
     
     try {
-        // Try to fetch from each table
+        // Fetch all tables in parallel
         const [usersRes, studentsRes, evaluatorsRes, dopsRes, monthlyRes, presentationRes, attendanceRes, gradesRes] = await Promise.all([
-            supabaseClient.from('users').select('*'),
-            supabaseClient.from('students').select('*'),
-            supabaseClient.from('evaluators').select('*'),
-            supabaseClient.from('dops_evals').select('*'),
-            supabaseClient.from('monthly_evals').select('*'),
-            supabaseClient.from('presentation_evals').select('*'),
-            supabaseClient.from('attendance_data').select('*'),
-            supabaseClient.from('final_grades').select('*')
+            supabase.from('users').select('*'),
+            supabase.from('students').select('*'),
+            supabase.from('evaluators').select('*'),
+            supabase.from('dops_evals').select('*'),
+            supabase.from('monthly_evals').select('*'),
+            supabase.from('presentation_evals').select('*'),
+            supabase.from('attendance_data').select('*'),
+            supabase.from('final_grades').select('*')
         ]);
         
-        if (usersRes.error) {
-            console.error('Users error:', usersRes.error);
-            throw new Error(`Users table error: ${usersRes.error.message}`);
-        }
+        if (usersRes.error) throw new Error(`Users: ${usersRes.error.message}`);
+        if (studentsRes.error) throw new Error(`Students: ${studentsRes.error.message}`);
+        if (evaluatorsRes.error) throw new Error(`Evaluators: ${evaluatorsRes.error.message}`);
         
-        usersData = usersRes.data || [];
-        studentsData = studentsRes.data || [];
-        evaluatorsData = evaluatorsRes.data || [];
-        dopsData = dopsRes.data || [];
-        monthlyData = monthlyRes.data || [];
-        presentationData = presentationRes.data || [];
+        users = usersRes.data || [];
+        students = studentsRes.data || [];
+        evaluators = evaluatorsRes.data || [];
+        dopsEvals = dopsRes.data || [];
+        monthlyEvals = monthlyRes.data || [];
+        presentationEvals = presentationRes.data || [];
         attendanceData = attendanceRes.data || [];
-        gradesData = gradesRes.data || [];
+        finalGrades = gradesRes.data || [];
         
-        console.log('Data loaded:', { 
-            users: usersData.length, 
-            students: studentsData.length,
-            evaluators: evaluatorsData.length,
-            dops: dopsData.length 
-        });
-        
-        updateStatus(`Ready (${usersData.length} users)`, '#4CAF50');
-        showLoading(false);
+        console.log('Data loaded:', { users: users.length, students: students.length });
+        updateStatus(`✅ ${users.length} users loaded`, '#4CAF50');
         return true;
         
     } catch (error) {
         console.error('Load error:', error);
-        updateStatus(`Error: ${error.message.substring(0, 40)}`, '#f44336');
-        showLoading(false);
+        updateStatus(`❌ ${error.message.substring(0, 40)}`, '#f44336');
         return false;
     }
+}
+
+// Display Admin Dashboard
+function displayAdminDashboard() {
+    const userListDiv = document.getElementById('adminUserList');
+    const statsDiv = document.getElementById('adminStats');
+    
+    if (userListDiv) {
+        userListDiv.innerHTML = users.map(u => `
+            <div class="border-b py-2 flex justify-between">
+                <span><strong>${u.username}</strong></span>
+                <span class="text-sm ${u.role === 'admin' ? 'text-purple-600' : u.role === 'evaluator' ? 'text-blue-600' : 'text-green-600'}">${u.role}</span>
+            </div>
+        `).join('') || '<div class="text-gray-500">No users found</div>';
+    }
+    
+    if (statsDiv) {
+        statsDiv.innerHTML = `
+            <div class="space-y-2">
+                <div class="flex justify-between"><span>👥 Total Users:</span><span class="font-bold">${users.length}</span></div>
+                <div class="flex justify-between"><span>🎓 Students:</span><span class="font-bold">${students.length}</span></div>
+                <div class="flex justify-between"><span>📝 Evaluators:</span><span class="font-bold">${evaluators.length}</span></div>
+                <div class="flex justify-between"><span>👑 Admins:</span><span class="font-bold">${users.filter(u => u.role === 'admin').length}</span></div>
+                <div class="border-t mt-2 pt-2"></div>
+                <div class="flex justify-between"><span>📋 DOPS:</span><span class="font-bold">${dopsEvals.length}</span></div>
+                <div class="flex justify-between"><span>📅 Monthly:</span><span class="font-bold">${monthlyEvals.length}</span></div>
+                <div class="flex justify-between"><span>🎤 Presentations:</span><span class="font-bold">${presentationEvals.length}</span></div>
+            </div>
+        `;
+    }
+}
+
+// Display Student Dashboard
+function displayStudentDashboard() {
+    const student = students.find(s => s.user_id === currentUser?.id);
+    const container = document.getElementById('studentContent');
+    
+    if (!student) {
+        container.innerHTML = '<div class="bg-red-50 p-4 rounded text-red-600">No student profile found. Please contact administrator.</div>';
+        return;
+    }
+    
+    const user = users.find(u => u.id === student.user_id);
+    const myDops = dopsEvals.filter(d => d.student_id === student.id);
+    const myMonthly = monthlyEvals.filter(m => m.student_id === student.id);
+    const myPresentations = presentationEvals.filter(p => p.student_id === student.id);
+    
+    container.innerHTML = `
+        <div class="bg-green-50 p-4 rounded">
+            <p class="text-lg font-semibold">Welcome, ${user?.first_name || user?.username || 'Student'}!</p>
+            <p class="text-sm text-gray-600">Student ID: ${student.student_id || 'Not assigned'}</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myDops.length}</div>
+                <div class="text-sm">DOPS Evaluations</div>
+                <div class="text-xs mt-2 text-gray-600">${myDops.map(d => `${d.date}: ${d.grand_total}/60`).slice(0,3).join('<br>') || 'No evaluations yet'}</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myMonthly.length}</div>
+                <div class="text-sm">Monthly Evaluations</div>
+                <div class="text-xs mt-2 text-gray-600">${myMonthly.map(m => `${m.date_from}: ${m.total_score}/63`).slice(0,3).join('<br>') || 'No evaluations yet'}</div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myPresentations.length}</div>
+                <div class="text-sm">Presentations</div>
+                <div class="text-xs mt-2 text-gray-600">${myPresentations.map(p => `${p.date}: ${p.total_score}/90`).slice(0,3).join('<br>') || 'No evaluations yet'}</div>
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 p-4 rounded">
+            <h3 class="font-semibold mb-2">📅 Attendance Record</h3>
+            <div class="max-h-48 overflow-y-auto text-sm">
+                ${attendanceData.map(day => {
+                    const status = day.records?.[student.id];
+                    if (status && status !== 'NA') {
+                        const color = status === 'Present' ? 'text-green-600' : status === 'Late' ? 'text-orange-600' : 'text-red-600';
+                        return `<div class="border-b py-1 flex justify-between"><span>${day.date}</span><span class="${color}">${status}</span></div>`;
+                    }
+                    return '';
+                }).join('') || '<div class="text-gray-500">No attendance records</div>'}
+            </div>
+        </div>
+    `;
+}
+
+// Display Evaluator Dashboard
+function displayEvaluatorDashboard() {
+    const evaluator = evaluators.find(e => e.user_id === currentUser?.id);
+    const container = document.getElementById('evaluatorContent');
+    
+    if (!evaluator) {
+        container.innerHTML = '<div class="bg-red-50 p-4 rounded text-red-600">No evaluator profile found. Please contact administrator.</div>';
+        return;
+    }
+    
+    const user = users.find(u => u.id === evaluator.user_id);
+    const myDops = dopsEvals.filter(d => d.evaluator_id === evaluator.id);
+    const myMonthly = monthlyEvals.filter(m => m.evaluator_id === evaluator.id);
+    const myPresentations = presentationEvals.filter(p => p.evaluator_id === evaluator.id);
+    
+    container.innerHTML = `
+        <div class="bg-green-50 p-4 rounded">
+            <p class="text-lg font-semibold">Welcome, ${user?.first_name || user?.username || 'Evaluator'}!</p>
+            <p class="text-sm text-gray-600">${evaluator.title || 'Evaluator'} ${evaluator.department ? `- ${evaluator.department}` : ''}</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myDops.length}</div>
+                <div class="text-sm">DOPS Evaluations Created</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myMonthly.length}</div>
+                <div class="text-sm">Monthly Evaluations Created</div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded text-center">
+                <div class="text-3xl font-bold">${myPresentations.length}</div>
+                <div class="text-sm">Presentations Evaluated</div>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 p-4 rounded">
+            <h3 class="font-semibold mb-2">📝 Students Available for Evaluation</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm max-h-48 overflow-y-auto">
+                ${students.map(s => {
+                    const studentUser = users.find(u => u.id === s.user_id);
+                    return `<div class="bg-white p-2 rounded border">${studentUser?.first_name || studentUser?.username || 'Student'} (${s.student_id || 'No ID'})</div>`;
+                }).join('') || '<div class="text-gray-500">No students found</div>'}
+            </div>
+            <div class="mt-3 text-sm text-gray-600 italic">Note: Full evaluation forms will be available in the next update. You can view existing evaluations above.</div>
+        </div>
+        
+        <div class="bg-gray-50 p-4 rounded">
+            <h3 class="font-semibold mb-2">📋 My Recent Evaluations</h3>
+            <div class="max-h-48 overflow-y-auto">
+                <div class="font-medium text-blue-600 mt-2">DOPS:</div>
+                ${myDops.slice(0,5).map(d => `<div class="border-b py-1 text-sm">${d.date} - Score: ${d.grand_total}/60 - Student ID: ${d.student_id}</div>`).join('') || '<div class="text-gray-500 text-sm">No DOPS evaluations yet</div>'}
+                <div class="font-medium text-green-600 mt-2">Monthly:</div>
+                ${myMonthly.slice(0,5).map(m => `<div class="border-b py-1 text-sm">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63 - Student ID: ${m.student_id}</div>`).join('') || '<div class="text-gray-500 text-sm">No monthly evaluations yet</div>'}
+                <div class="font-medium text-purple-600 mt-2">Presentations:</div>
+                ${myPresentations.slice(0,5).map(p => `<div class="border-b py-1 text-sm">${p.date} - "${p.title}" - Score: ${p.total_score}/90 - Student ID: ${p.student_id}</div>`).join('') || '<div class="text-gray-500 text-sm">No presentation evaluations yet</div>'}
+            </div>
+        </div>
+    `;
 }
 
 // Login handler
@@ -201,16 +317,18 @@ async function handleLogin() {
     const password = document.getElementById('loginPassword').value;
     const role = document.getElementById('loginRole').value;
     
-    showLoading(true);
+    if (!username || !password) {
+        alert('Please enter username and password');
+        return;
+    }
     
-    // Make sure we have fresh data
-    await loadAllData();
+    updateStatus('Logging in...', '#ff9800');
     
-    const user = usersData.find(u => u.username === username && u.password === password && u.role === role);
+    const user = users.find(u => u.username === username && u.password === password && u.role === role);
     
     if (user) {
         currentUser = user;
-        document.getElementById('currentUser').innerText = `${user.first_name || user.username} (${user.role})`;
+        document.getElementById('currentUser').innerHTML = `<i class="fas fa-user-circle mr-1"></i>${user.first_name || user.username} (${user.role})`;
         document.getElementById('logoutBtn').classList.remove('hidden');
         
         if (role === 'admin') {
@@ -225,214 +343,57 @@ async function handleLogin() {
         }
         
         updateStatus(`Welcome ${user.first_name || user.username}`, '#4CAF50');
+        setTimeout(() => updateStatus(`✅ ${users.length} users loaded`, '#4CAF50'), 2000);
     } else {
         alert('Invalid credentials. Use:\nAdmin: admin / 4141\nEvaluator: eval1 / pass\nStudent: student1 / pass');
+        updateStatus('Login failed', '#f44336');
+        setTimeout(() => updateStatus(`✅ ${users.length} users loaded`, '#4CAF50'), 2000);
     }
-    
-    showLoading(false);
 }
 
 // Logout handler
 function handleLogout() {
     currentUser = null;
-    document.getElementById('currentUser').innerText = '';
+    document.getElementById('currentUser').innerHTML = '';
     document.getElementById('logoutBtn').classList.add('hidden');
     showSection('loginSection');
     updateStatus('Logged out', '#ff9800');
+    setTimeout(() => updateStatus(`✅ ${users.length} users loaded`, '#4CAF50'), 2000);
 }
 
-// Admin Dashboard Display
-function displayAdminDashboard() {
-    const userListDiv = document.getElementById('adminUserList');
-    const statsDiv = document.getElementById('adminStats');
-    
-    if (userListDiv) {
-        userListDiv.innerHTML = usersData.map(u => 
-            `<div class="border-b py-1">${u.username} (${u.role})</div>`
-        ).join('') || '<div>No users found</div>';
-    }
-    
-    if (statsDiv) {
-        statsDiv.innerHTML = `
-            <div>Total Users: ${usersData.length}</div>
-            <div>Students: ${studentsData.length}</div>
-            <div>Evaluators: ${evaluatorsData.length}</div>
-            <div>DOPS Evaluations: ${dopsData.length}</div>
-            <div>Monthly Evaluations: ${monthlyData.length}</div>
-            <div>Presentations: ${presentationData.length}</div>
-        `;
-    }
-}
-
-// Student Dashboard Display
-function displayStudentDashboard() {
-    const student = studentsData.find(s => s.user_id === currentUser?.id);
-    const content = document.getElementById('studentDashboardContent');
-    
-    if (!student) {
-        content.innerHTML = '<p class="text-red-600">No student profile found for your account.</p>';
-        return;
-    }
-    
-    // Get student's evaluations
-    const myDops = dopsData.filter(d => d.student_id === student.id);
-    const myMonthly = monthlyData.filter(m => m.student_id === student.id);
-    const myPresentations = presentationData.filter(p => p.student_id === student.id);
-    
-    content.innerHTML = `
-        <div class="bg-green-50 p-4 rounded">
-            <p class="font-semibold">Welcome, ${currentUser.first_name || currentUser.username}!</p>
-            <p class="text-sm text-gray-600">Student ID: ${student.student_id || 'Not assigned'}</p>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div class="bg-blue-50 p-3 rounded">
-                <h3 class="font-semibold">DOPS Evaluations</h3>
-                <p class="text-2xl">${myDops.length}</p>
-                <div class="text-sm mt-2">${myDops.map(d => `<div>${d.date}: ${d.grand_total}/60</div>`).join('') || 'None yet'}</div>
-            </div>
-            <div class="bg-green-50 p-3 rounded">
-                <h3 class="font-semibold">Monthly Evaluations</h3>
-                <p class="text-2xl">${myMonthly.length}</p>
-                <div class="text-sm mt-2">${myMonthly.map(m => `<div>${m.date_from}: ${m.total_score}/63</div>`).join('') || 'None yet'}</div>
-            </div>
-            <div class="bg-purple-50 p-3 rounded">
-                <h3 class="font-semibold">Presentations</h3>
-                <p class="text-2xl">${myPresentations.length}</p>
-                <div class="text-sm mt-2">${myPresentations.map(p => `<div>${p.date}: ${p.total_score}/90</div>`).join('') || 'None yet'}</div>
-            </div>
-        </div>
-        
-        <div class="bg-gray-50 p-3 rounded mt-4">
-            <h3 class="font-semibold">Attendance Record</h3>
-            <div class="text-sm mt-2">${attendanceData.map(day => {
-                const status = day.records?.[student.id];
-                return status ? `<div>${day.date}: ${status}</div>` : '';
-            }).join('') || 'No attendance records'}</div>
-        </div>
-    `;
-}
-
-// Evaluator Dashboard Display
-function displayEvaluatorDashboard() {
-    const evaluator = evaluatorsData.find(e => e.user_id === currentUser?.id);
-    const content = document.getElementById('evaluatorDashboardContent');
-    
-    if (!evaluator) {
-        content.innerHTML = '<p class="text-red-600">No evaluator profile found for your account.</p>';
-        return;
-    }
-    
-    // Get evaluator's evaluations
-    const myDops = dopsData.filter(d => d.evaluator_id === evaluator.id);
-    const myMonthly = monthlyData.filter(m => m.evaluator_id === evaluator.id);
-    const myPresentations = presentationData.filter(p => p.evaluator_id === evaluator.id);
-    
-    // Get students list
-    const studentList = studentsData.map(s => {
-        const user = usersData.find(u => u.id === s.user_id);
-        return `<option value="${s.id}">${user?.first_name || 'Unknown'} ${user?.last_name || ''}</option>`;
-    }).join('');
-    
-    content.innerHTML = `
-        <div class="bg-green-50 p-4 rounded">
-            <p class="font-semibold">Welcome, ${currentUser.first_name || currentUser.username}!</p>
-            <p class="text-sm text-gray-600">Title: ${evaluator.title || 'Not set'}</p>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div class="bg-blue-50 p-3 rounded">
-                <h3 class="font-semibold">My DOPS Evaluations</h3>
-                <p class="text-2xl">${myDops.length}</p>
-            </div>
-            <div class="bg-green-50 p-3 rounded">
-                <h3 class="font-semibold">My Monthly Evaluations</h3>
-                <p class="text-2xl">${myMonthly.length}</p>
-            </div>
-            <div class="bg-purple-50 p-3 rounded">
-                <h3 class="font-semibold">My Presentations</h3>
-                <p class="text-2xl">${myPresentations.length}</p>
-            </div>
-        </div>
-        
-        <div class="bg-yellow-50 p-4 rounded mt-4">
-            <h3 class="font-semibold mb-2">Create New Evaluation</h3>
-            <div class="mb-3">
-                <label class="block text-sm">Select Student</label>
-                <select id="evalStudentSelect" class="border p-2 w-full rounded">${studentList}</select>
-            </div>
-            <div class="flex gap-2 mt-3">
-                <button id="createDopsBtn" class="bg-blue-500 text-white px-3 py-1 rounded text-sm">Create DOPS</button>
-                <button id="createMonthlyBtn" class="bg-green-500 text-white px-3 py-1 rounded text-sm">Create Monthly</button>
-                <button id="createPresentationBtn" class="bg-purple-500 text-white px-3 py-1 rounded text-sm">Create Presentation</button>
-            </div>
-        </div>
-        
-        <div class="bg-gray-50 p-4 rounded mt-4">
-            <h3 class="font-semibold mb-2">My Recent Evaluations</h3>
-            <div class="text-sm max-h-64 overflow-y-auto">
-                <div class="font-semibold mt-2">DOPS:</div>
-                ${myDops.slice(0,5).map(d => `<div class="border-b py-1">${d.date}: Student ${d.student_id} - Score ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">None yet</div>'}
-                <div class="font-semibold mt-2">Monthly:</div>
-                ${myMonthly.slice(0,5).map(m => `<div class="border-b py-1">${m.date_from}: Student ${m.student_id} - Score ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">None yet</div>'}
-                <div class="font-semibold mt-2">Presentations:</div>
-                ${myPresentations.slice(0,5).map(p => `<div class="border-b py-1">${p.date}: ${p.title} - Score ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">None yet</div>'}
-            </div>
-        </div>
-    `;
-    
-    // Attach event listeners
-    document.getElementById('createDopsBtn')?.addEventListener('click', () => alert('Full DOPS form will be added in next version. Currently in simplified mode.'));
-    document.getElementById('createMonthlyBtn')?.addEventListener('click', () => alert('Full Monthly form will be added in next version. Currently in simplified mode.'));
-    document.getElementById('createPresentationBtn')?.addEventListener('click', () => alert('Full Presentation form will be added in next version. Currently in simplified mode.'));
-}
-
-// Refresh button
-document.getElementById('refreshAdminBtn')?.addEventListener('click', async () => {
+// Refresh data
+async function handleRefresh() {
     await loadAllData();
     if (currentUser?.role === 'admin') {
         displayAdminDashboard();
+    } else if (currentUser?.role === 'evaluator') {
+        displayEvaluatorDashboard();
+    } else if (currentUser?.role === 'student') {
+        displayStudentDashboard();
     }
-    updateStatus('Refreshed', '#4CAF50');
-    setTimeout(() => updateStatus(`Ready (${usersData.length} users)`, '#4CAF50'), 2000);
-});
+}
 
-// Initialize the app
+// Initialize app
 async function init() {
     updateStatus('Connecting to Supabase...', '#ff9800');
     
     try {
-        // Create Supabase client
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase client created');
         
-        // Test connection with a simple query
-        const { data, error } = await supabaseClient.from('users').select('count', { count: 'exact', head: true });
+        await loadAllData();
+        showSection('loginSection');
         
-        if (error) {
-            console.error('Connection test failed:', error);
-            updateStatus(`Error: ${error.message.substring(0, 40)}`, '#f44336');
-        } else {
-            console.log('Connection test passed');
-            updateStatus('Connected, loading data...', '#ff9800');
-            
-            // Load all data
-            await loadAllData();
-            
-            // Show login section
-            showSection('loginSection');
-            updateStatus(`Ready (${usersData.length} users)`, '#4CAF50');
-        }
-        
-    } catch (err) {
-        console.error('Init error:', err);
-        updateStatus(`Init failed: ${err.message.substring(0, 40)}`, '#f44336');
+    } catch (error) {
+        console.error('Init error:', error);
+        updateStatus('Connection failed', '#f44336');
     }
 }
 
 // Event listeners
-document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
-document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
+document.getElementById('loginBtn').addEventListener('click', handleLogin);
+document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+document.getElementById('refreshBtn').addEventListener('click', handleRefresh);
 
 // Start the app
 init();
