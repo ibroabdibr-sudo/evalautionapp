@@ -3,423 +3,650 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EAUH Resident Evaluation System</title>
+    <title>EAUH Resident Evaluation App</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, sans-serif; }
         .section { display: none; }
-        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .btn { padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-danger:hover { background: #dc2626; }
+        .form-card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #e5e7eb; padding: 10px; text-align: left; }
-        th { background: #f9fafb; font-weight: 600; }
-        .status-badge { position: fixed; bottom: 16px; right: 16px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 1000; }
-        .stat-card { background: #f3f4f6; padding: 16px; border-radius: 12px; text-align: center; }
-        .stat-number { font-size: 32px; font-weight: bold; color: #3b82f6; }
-        .tab { cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s; display: inline-block; }
-        .tab-active { background: #3b82f6; color: white; }
-        .tab-inactive { background: #e5e7eb; color: #374151; }
-        .tab-inactive:hover { background: #d1d5db; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+        th { background-color: #f2f2f2; text-align: center; }
+        .score-option { display: flex; gap: 8px; justify-content: center; }
+        .score-option label { display: flex; flex-direction: column; align-items: center; font-size: 12px; }
+        .competency-desc { font-size: 0.85em; color: #555; margin-top: 4px; }
+        .radio-group { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .score-key { background: #e6f7ff; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; }
+        .score-key span { display: inline-block; margin-right: 15px; }
+        .attendance-table { overflow-x: auto; }
+        .attendance-table th, .attendance-table td { min-width: 100px; }
+        .student-photo-thumb { max-width: 60px; max-height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
+        .photo-upload-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .sync-status { position: fixed; bottom: 10px; right: 10px; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000; font-family: monospace; cursor: pointer; }
+        .loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10000; text-align: center; }
         .hidden { display: none; }
+        .score-input { width: 70px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
-<body class="bg-gray-50">
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- Status Badge -->
-        <div id="statusBadge" class="status-badge" style="background: #10b981; color: white;">🟢 Connected</div>
-        
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-blue-700">🏥 EAUH Resident Evaluation System</h1>
-            <div class="flex items-center gap-3">
-                <span id="userName" class="text-gray-600"></span>
-                <button id="logoutBtn" class="btn btn-danger text-sm hidden">Logout</button>
+<body class="bg-gray-100 p-4">
+<div class="container mx-auto max-w-7xl">
+    <div id="loadingIndicator" class="loading hidden"><div class="text-blue-600 text-xl">Loading...</div><div class="text-gray-500 text-sm mt-2">Connecting to database</div></div>
+    <div id="syncStatus" class="sync-status">🟢 Initializing...</div>
+    
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-blue-800">EAUH Resident Evaluation</h1>
+        <div id="authDisplay" class="flex items-center gap-2">
+            <span id="currentUser" class="text-gray-700"></span>
+            <button id="logoutBtn" class="bg-red-500 text-white px-3 py-1 rounded text-sm hidden">Logout</button>
+        </div>
+    </div>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="section form-card max-w-md mx-auto mt-10">
+        <h2 class="text-xl font-semibold mb-4">Login</h2>
+        <div class="mb-3">
+            <label class="block text-sm font-medium">Name</label>
+            <input type="text" id="loginUsername" placeholder="Enter your name" class="w-full border rounded p-2">
+        </div>
+        <div class="mb-3">
+            <label class="block text-sm font-medium">Password</label>
+            <input type="password" id="loginPassword" placeholder="Password" class="w-full border rounded p-2">
+        </div>
+        <div class="mb-3">
+            <label class="block text-sm font-medium">Role</label>
+            <select id="loginRole" class="w-full border rounded p-2">
+                <option value="admin">Admin</option>
+                <option value="evaluator">Evaluator</option>
+                <option value="student">Student</option>
+            </select>
+        </div>
+        <button id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Login</button>
+        <div class="text-center text-sm text-gray-500 mt-4">
+            <p>Demo: admin/4141 | eval1/pass | student1/pass</p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminSection" class="section">
+        <div class="flex gap-2 mb-4 flex-wrap">
+            <button class="tab-btn bg-blue-600 text-white px-3 py-1 rounded" data-tab="adminUsers">Users</button>
+            <button class="tab-btn bg-gray-300 px-3 py-1 rounded" data-tab="adminDops">DOPS</button>
+            <button class="tab-btn bg-gray-300 px-3 py-1 rounded" data-tab="adminMonthly">Monthly</button>
+            <button class="tab-btn bg-gray-300 px-3 py-1 rounded" data-tab="adminPresentation">Presentations</button>
+            <button class="tab-btn bg-gray-300 px-3 py-1 rounded" data-tab="adminAttendance">Attendance</button>
+            <button class="tab-btn bg-gray-300 px-3 py-1 rounded" data-tab="adminFinalGrades">Final Grades</button>
+        </div>
+
+        <div id="adminUsers" class="tab-content">
+            <div class="form-card">
+                <h3 class="text-lg font-semibold mb-2">Add New User</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input type="text" id="newUsername" placeholder="Name" class="border p-2">
+                    <input type="password" id="newPassword" placeholder="Password" class="border p-2">
+                    <select id="newRole" class="border p-2">
+                        <option value="admin">Admin</option>
+                        <option value="evaluator">Evaluator</option>
+                        <option value="student">Student</option>
+                    </select>
+                </div>
+                <button id="addUserBtn" class="bg-green-600 text-white px-4 py-2 mt-2 rounded">Add User</button>
+            </div>
+            <div class="form-card overflow-x-auto">
+                <h3 class="text-lg font-semibold mb-2">All Users (click 📷 to upload student photo)</h3>
+                <table class="min-w-full">
+                    <thead><tr><th>ID</th><th>Name</th><th>Password</th><th>Role</th><th>Photo</th><th>Action</th></tr></thead>
+                    <tbody id="userTableBody"></tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Login Section -->
-        <div id="loginSection" class="section">
-            <div class="max-w-md mx-auto card">
-                <h2 class="text-2xl font-bold mb-6 text-center">🔐 Login to System</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Username</label>
-                        <input type="text" id="username" class="w-full border rounded-lg p-2" placeholder="Enter username">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Password</label>
-                        <input type="password" id="password" class="w-full border rounded-lg p-2" placeholder="Enter password">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Role</label>
-                        <select id="role" class="w-full border rounded-lg p-2">
-                            <option value="admin">Admin</option>
-                            <option value="evaluator">Evaluator</option>
-                            <option value="student">Student</option>
-                        </select>
-                    </div>
-                    <button id="loginBtn" class="btn btn-primary w-full py-2">Login</button>
+        <div id="adminDops" class="tab-content hidden">
+            <h3 class="text-xl font-semibold mb-2">All DOPS Evaluations</h3>
+            <div id="adminDopsList" class="space-y-2"></div>
+        </div>
+
+        <div id="adminMonthly" class="tab-content hidden">
+            <h3 class="text-xl font-semibold mb-2">All Monthly Evaluations</h3>
+            <div id="adminMonthlyList" class="space-y-2"></div>
+        </div>
+
+        <div id="adminPresentation" class="tab-content hidden">
+            <h3 class="text-xl font-semibold mb-2">All Presentation Evaluations</h3>
+            <div id="adminPresentationList" class="space-y-2"></div>
+        </div>
+
+        <div id="adminAttendance" class="tab-content hidden">
+            <div class="form-card">
+                <h3 class="text-lg font-semibold mb-2">Attendance Matrix</h3>
+                <div class="mb-4 flex gap-2 items-end">
+                    <div><label class="block text-sm">Select Month</label><input type="month" id="attendanceMonth" class="border p-2"></div>
+                    <button id="addMonthBtn" class="bg-green-600 text-white px-4 py-2 rounded">Add Month</button>
                 </div>
-                <div class="mt-6 text-center text-sm text-gray-500 border-t pt-4">
-                    <p class="font-medium">Demo Accounts:</p>
-                    <p>👑 Admin: admin / 4141</p>
-                    <p>📝 Evaluator: eval1 / pass</p>
-                    <p>🎓 Student: student1 / pass</p>
+                <div class="attendance-table">
+                    <table class="w-full text-sm">
+                        <thead id="attendanceMatrixHeader"></thead>
+                        <tbody id="attendanceMatrixBody"></tbody>
+                    </table>
                 </div>
+                <button id="saveAttendanceMatrixBtn" class="bg-blue-600 text-white px-4 py-2 mt-4 rounded">Save Changes</button>
             </div>
         </div>
 
-        <!-- Admin Dashboard -->
-        <div id="adminSection" class="section">
-            <div class="flex gap-2 mb-6 flex-wrap">
-                <button class="tab tab-active" onclick="window.showAdminTab('users')">👥 Users</button>
-                <button class="tab tab-inactive" onclick="window.showAdminTab('stats')">📊 Statistics</button>
-                <button class="tab tab-inactive" onclick="window.showAdminTab('evaluations')">📋 Evaluations</button>
-            </div>
-            
-            <div id="adminUsersTab" class="tab-content">
-                <div class="card">
-                    <h3 class="text-lg font-bold mb-4">👥 System Users</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr><th>ID</th><th>Username</th><th>Role</th><th>Name</th></tr>
-                            </thead>
-                            <tbody id="usersTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="adminStatsTab" class="tab-content hidden">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="stat-card"><div class="stat-number" id="totalUsers">0</div><div>Total Users</div></div>
-                    <div class="stat-card"><div class="stat-number" id="totalStudents">0</div><div>Students</div></div>
-                    <div class="stat-card"><div class="stat-number" id="totalEvaluators">0</div><div>Evaluators</div></div>
-                    <div class="stat-card"><div class="stat-number" id="totalDOPS">0</div><div>DOPS Evaluations</div></div>
-                </div>
-            </div>
-            
-            <div id="adminEvalsTab" class="tab-content hidden">
-                <div class="card">
-                    <h3 class="text-lg font-bold mb-4">📋 All DOPS Evaluations</h3>
-                    <div id="allDopsList" class="space-y-2"></div>
-                    <h3 class="text-lg font-bold mt-6 mb-4">📅 All Monthly Evaluations</h3>
-                    <div id="allMonthlyList" class="space-y-2"></div>
-                    <h3 class="text-lg font-bold mt-6 mb-4">🎤 All Presentations</h3>
-                    <div id="allPresentationList" class="space-y-2"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Student Dashboard -->
-        <div id="studentSection" class="section">
-            <div class="card">
-                <h2 class="text-xl font-bold mb-4">🎓 Student Dashboard</h2>
-                <div id="studentInfo" class="mb-6 p-4 bg-blue-50 rounded-lg"></div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="stat-card"><div class="stat-number" id="studentDopsCount">0</div><div>DOPS Evaluations</div></div>
-                    <div class="stat-card"><div class="stat-number" id="studentMonthlyCount">0</div><div>Monthly Evaluations</div></div>
-                    <div class="stat-card"><div class="stat-number" id="studentPresCount">0</div><div>Presentations</div></div>
-                </div>
-                <div id="studentEvaluations"></div>
-            </div>
-        </div>
-
-        <!-- Evaluator Dashboard -->
-        <div id="evaluatorSection" class="section">
-            <div class="card">
-                <h2 class="text-xl font-bold mb-4">📝 Evaluator Dashboard</h2>
-                <div id="evaluatorInfo" class="mb-6 p-4 bg-green-50 rounded-lg"></div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="stat-card"><div class="stat-number" id="evalDopsCount">0</div><div>My DOPS</div></div>
-                    <div class="stat-card"><div class="stat-number" id="evalMonthlyCount">0</div><div>My Monthly</div></div>
-                    <div class="stat-card"><div class="stat-number" id="evalPresCount">0</div><div>My Presentations</div></div>
-                </div>
-                <div id="evaluatorEvaluations"></div>
+        <div id="adminFinalGrades" class="tab-content hidden">
+            <h3 class="text-xl font-semibold mb-2">Final Grades</h3>
+            <div class="form-card overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr><th>Student</th><th>Avg DOPS%</th><th>Avg Monthly%</th><th>Avg Presentation%</th><th>Attendance%</th><th>Composite (25%)</th><th>Exam (0-70)</th><th>Committee (0-5)</th><th>Final %</th><th>Grade</th></tr></thead>
+                    <tbody id="finalGradesBody"></tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <script>
-    // Supabase Configuration
-    const SUPABASE_URL = 'https://rnlutvfzmnnxihgwcymw.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJubHV0dmZ6bW5ueGloZ3djeW13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjAxMDcsImV4cCI6MjA4OTc5NjEwN30.2RfFEacIgG2XnvVRBFjcTELO26nt4T3zJP3v8-0JgTM';
-    
-    // Global variables - no duplicate declarations
-    let supabaseClient = null;
-    let currentUserObj = null;
-    let usersList = [];
-    let studentsList = [];
-    let evaluatorsList = [];
-    let dopsList = [];
-    let monthlyList = [];
-    let presentationList = [];
-    
-    // Initialize
-    async function initializeApp() {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        await loadAllData();
-        showSection('loginSection');
-        document.getElementById('statusBadge').innerHTML = '🟢 Connected';
-        document.getElementById('statusBadge').style.background = '#10b981';
-    }
-    
-    // Load all data
-    async function loadAllData() {
-        try {
-            const [usersRes, studentsRes, evaluatorsRes, dopsRes, monthlyRes, presentationRes] = await Promise.all([
-                supabaseClient.from('users').select('*'),
-                supabaseClient.from('students').select('*'),
-                supabaseClient.from('evaluators').select('*'),
-                supabaseClient.from('dops_evals').select('*'),
-                supabaseClient.from('monthly_evals').select('*'),
-                supabaseClient.from('presentation_evals').select('*')
-            ]);
+    <!-- Evaluator Dashboard -->
+    <div id="evaluatorSection" class="section">
+        <h2 class="text-xl font-semibold mb-2">Evaluator Dashboard</h2>
+        <div class="flex gap-2 mb-4 flex-wrap">
+            <button class="eval-tab-btn bg-blue-600 text-white px-3 py-1 rounded" data-eval-tab="evalStudents">Students</button>
+            <button class="eval-tab-btn bg-gray-300 px-3 py-1 rounded" data-eval-tab="evalMyEvals">My Evaluations</button>
+        </div>
+        <div id="evalStudents" class="eval-tab-content">
+            <h3 class="text-lg font-semibold mb-2">Select Student for Evaluation</h3>
+            <select id="studentSelect" class="border p-2 w-full mb-4"></select>
             
-            if (usersRes.error) throw usersRes.error;
-            usersList = usersRes.data || [];
-            studentsList = studentsRes.data || [];
-            evaluatorsList = evaluatorsRes.data || [];
-            dopsList = dopsRes.data || [];
-            monthlyList = monthlyRes.data || [];
-            presentationList = presentationRes.data || [];
-            
-            console.log('Data loaded:', { users: usersList.length, students: studentsList.length });
-            return true;
-        } catch (error) {
-            console.error('Load error:', error);
-            document.getElementById('statusBadge').innerHTML = '🔴 Error';
-            document.getElementById('statusBadge').style.background = '#ef4444';
-            return false;
-        }
-    }
-    
-    // Show section
-    function showSection(sectionId) {
-        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-        document.getElementById(sectionId).style.display = 'block';
-    }
-    
-    // Show admin tab
-    window.showAdminTab = function(tab) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-        document.getElementById(`admin${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`).classList.remove('hidden');
-        document.querySelectorAll('.tab').forEach(t => {
-            t.classList.remove('tab-active', 'tab-inactive');
-            t.classList.add('tab-inactive');
-        });
-        event.target.classList.remove('tab-inactive');
-        event.target.classList.add('tab-active');
-        
-        if (tab === 'users') displayUsersTable();
-        if (tab === 'stats') displayStats();
-        if (tab === 'evaluations') displayAllEvaluations();
-    };
-    
-    // Display users table
-    function displayUsersTable() {
-        const tbody = document.getElementById('usersTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = usersList.map(u => `
-            <tr>
-                <td>${u.id}</td>
-                <td><strong>${u.username}</strong></td>
-                <td><span class="px-2 py-1 rounded text-xs ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : u.role === 'evaluator' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${u.role}</span></td>
-                <td>${u.first_name || ''} ${u.last_name || ''}</td>
-            </tr>
-        `).join('');
-    }
-    
-    // Display statistics
-    function displayStats() {
-        document.getElementById('totalUsers').innerText = usersList.length;
-        document.getElementById('totalStudents').innerText = studentsList.length;
-        document.getElementById('totalEvaluators').innerText = evaluatorsList.length;
-        document.getElementById('totalDOPS').innerText = dopsList.length;
-    }
-    
-    // Display all evaluations
-    function displayAllEvaluations() {
-        const dopsDiv = document.getElementById('allDopsList');
-        const monthlyDiv = document.getElementById('allMonthlyList');
-        const presDiv = document.getElementById('allPresentationList');
-        
-        if (dopsDiv) {
-            dopsDiv.innerHTML = dopsList.map(d => `
-                <div class="border rounded p-3 bg-gray-50">
-                    <strong>Student ID: ${d.student_id}</strong> | Date: ${d.date} | Score: ${d.grand_total}/60
-                    <button class="btn btn-primary text-sm ml-2" onclick="window.downloadDopsPDF(${d.id})">📄 Download PDF</button>
+            <div class="flex items-center gap-4 mb-4 p-3 bg-gray-50 rounded">
+                <img id="selectedStudentPhoto" src="" alt="Student photo" class="student-photo-thumb max-w-[100px] max-h-[100px] border-2 border-gray-300 rounded hidden">
+                <p id="noStudentPhotoMsg" class="text-sm text-gray-500 italic hidden">No photo uploaded for this student</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="form-card"><h4 class="font-semibold">DOPS</h4><button id="startDopsBtn" class="bg-blue-600 text-white px-3 py-1 rounded">Start DOPS</button></div>
+                <div class="form-card"><h4 class="font-semibold">Monthly</h4><button id="startMonthlyBtn" class="bg-blue-600 text-white px-3 py-1 rounded">Start Monthly</button></div>
+                <div class="form-card"><h4 class="font-semibold">Presentation</h4><button id="startPresentationBtn" class="bg-blue-600 text-white px-3 py-1 rounded">Start Presentation</button></div>
+            </div>
+        </div>
+        <div id="evalMyEvals" class="eval-tab-content hidden">
+            <h3 class="text-lg font-semibold mb-2">My Evaluations</h3>
+            <div id="myEvalsList"></div>
+        </div>
+    </div>
+
+    <!-- Student Dashboard -->
+    <div id="studentSection" class="section">
+        <h2 class="text-xl font-semibold mb-2">Student Dashboard</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="form-card flex flex-col items-center">
+                <h3 class="font-semibold mb-2">Passport Photo</h3>
+                <img id="studentPhotoImg" src="" alt="Student photo" class="student-photo-thumb max-w-[150px] max-h-[150px] border-2 border-gray-300 rounded mb-2" style="display:none;">
+                <p id="studentPhotoMissing" class="text-sm text-gray-500 italic">No photo uploaded</p>
+                <div class="text-lg font-semibold mt-2" id="studentOverallGrade"></div>
+            </div>
+            <div class="form-card">
+                <h3 class="font-semibold">My Evaluation Summary</h3>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div><strong>DOPS:</strong> <span id="studentDopsCount">0</span></div>
+                    <div><strong>Monthly:</strong> <span id="studentMonthlyCount">0</span></div>
+                    <div><strong>Presentations:</strong> <span id="studentPresCount">0</span></div>
+                    <div><strong>Attendance:</strong> <span id="studentAttendancePercent">0%</span></div>
                 </div>
-            `).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>';
-        }
-        
-        if (monthlyDiv) {
-            monthlyDiv.innerHTML = monthlyList.map(m => `
-                <div class="border rounded p-3 bg-gray-50">
-                    <strong>Student ID: ${m.student_id}</strong> | Period: ${m.date_from} to ${m.date_to} | Score: ${m.total_score}/63
-                </div>
-            `).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>';
-        }
-        
-        if (presDiv) {
-            presDiv.innerHTML = presentationList.map(p => `
-                <div class="border rounded p-3 bg-gray-50">
-                    <strong>Student ID: ${p.student_id}</strong> | Title: ${p.title} | Score: ${p.total_score}/90
-                </div>
-            `).join('') || '<div class="text-gray-500">No presentation evaluations yet</div>';
-        }
+            </div>
+            <div class="form-card">
+                <h3 class="font-semibold">Quick links</h3>
+                <p class="text-sm text-gray-600">View your evaluations below</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <div class="form-card"><h3 class="font-semibold">My DOPS</h3><div id="studentDops"></div></div>
+            <div class="form-card"><h3 class="font-semibold">My Monthly</h3><div id="studentMonthly"></div></div>
+            <div class="form-card"><h3 class="font-semibold">My Presentations</h3><div id="studentPresentation"></div></div>
+            <div class="form-card"><h3 class="font-semibold">My Attendance</h3><div id="studentAttendance"></div></div>
+        </div>
+    </div>
+
+    <!-- DOPS Form -->
+    <div id="dopsFormContainer" class="section form-card">
+        <h2 class="text-xl font-semibold mb-4">DOPS Evaluation</h2>
+        <div class="score-key">
+            <span><strong>0</strong> = Not done / Unsafe</span>
+            <span><strong>1</strong> = Done with major assistance</span>
+            <span><strong>2</strong> = Done with minor assistance</span>
+            <span><strong>3</strong> = Done independently & correctly</span>
+        </div>
+        <form id="dopsForm">
+            <input type="hidden" id="dopsStudentId">
+            <div class="grid grid-cols-2 gap-4">
+                <div><label>Date</label><input type="date" id="dopsDate" class="border p-2 w-full"></div>
+                <div><label>Case No.</label><input type="text" id="dopsCaseNo" class="border p-2 w-full"></div>
+                <div><label>Type</label><select id="dopsType" class="border p-2 w-full"><option value="Elective CS">Elective CS</option><option value="Emergency CS">Emergency CS</option></select></div>
+                <div><label>Indications</label><input type="text" id="dopsIndications" class="border p-2 w-full"></div>
+            </div>
+            <h3 class="font-semibold mt-4">Pre‑operative Assessment & Preparation</h3>
+            <table class="w-full"><thead><tr><th>Activity</th><th>Score (0-3)</th></tr></thead><tbody id="preTable"></tbody></table>
+            <h3 class="font-semibold mt-4">Intra‑operative Technical Skills</h3>
+            <table class="w-full"><thead><tr><th>Step</th><th>Score (0-3)</th></tr></thead><tbody id="intraTable"></tbody></table>
+            <h3 class="font-semibold mt-4">Post‑operative Care</h3>
+            <table class="w-full"><thead><tr><th>Activity</th><th>Score (0-3)</th></tr></thead><tbody id="postTable"></tbody></table>
+            <div class="mt-4"><label>Comments</label><textarea id="dopsComments" class="border p-2 w-full"></textarea></div>
+            <div class="mt-4 flex gap-2">
+                <button type="button" id="saveDopsBtn" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
+                <button type="button" id="cancelDopsBtn" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Monthly Form -->
+    <div id="monthlyFormContainer" class="section form-card">
+        <h2 class="text-xl font-semibold mb-4">Monthly Evaluation</h2>
+        <form id="monthlyForm">
+            <input type="hidden" id="monthlyStudentId">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div><label>Attachment Site</label><input type="text" id="monthlySite" class="border p-2 w-full"></div>
+                <div><label>From Date</label><input type="date" id="monthlyFrom" class="border p-2 w-full"></div>
+                <div><label>To Date</label><input type="date" id="monthlyTo" class="border p-2 w-full"></div>
+            </div>
+            <h3 class="font-semibold mt-4">Competencies (1-8 scale for first six, 1-5 for last three)</h3>
+            <table class="w-full">
+                <thead><tr><th>Competency</th><th>Excellent</th><th>Good</th><th>Satisfactory</th><th>Needs Improvement</th></tr></thead>
+                <tbody id="monthlyCompetencies"></tbody>
+            </table>
+            <div class="mt-4"><label>Comments</label><textarea id="monthlyComments" class="border p-2 w-full"></textarea></div>
+            <div class="mt-4 flex gap-2">
+                <button type="button" id="saveMonthlyBtn" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
+                <button type="button" id="cancelMonthlyBtn" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Presentation Form -->
+    <div id="presentationFormContainer" class="section form-card">
+        <h2 class="text-xl font-semibold mb-4">Lecture / Case Presentation Evaluation</h2>
+        <form id="presentationForm">
+            <input type="hidden" id="presentationStudentId">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div><label>Presenter Name</label><input type="text" id="presentationPresenter" class="border p-2 w-full"></div>
+                <div><label>Title</label><input type="text" id="presentationTitle" class="border p-2 w-full"></div>
+                <div><label>Type</label><select id="presentationType" class="border p-2 w-full"><option value="Lecture">Lecture</option><option value="Case Presentation">Case Presentation</option></select></div>
+                <div><label>Date</label><input type="date" id="presentationDate" class="border p-2 w-full"></div>
+            </div>
+            <h3 class="font-semibold mt-4">Evaluation Criteria</h3>
+            <p class="text-sm mb-2">Scale: 1=Not Accomplished, 2=Needs Development, 3=Acceptable, 4=Mostly Accomplished, 5=Accomplished, NA=Not Applicable</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr><th>#</th><th>Criteria</th><th>Score (1-5 / NA)</th><th>Comments</th></tr></thead>
+                    <tbody id="presentationCriteriaBody"></tbody>
+                </table>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <div><label>Evaluator's Name</label><input type="text" id="presentationEvalName" class="border p-2 w-full"></div>
+                <div><label>Signature</label><input type="text" id="presentationEvalSignature" class="border p-2 w-full"></div>
+            </div>
+            <div class="mt-4 flex gap-2">
+                <button type="button" id="savePresentationBtn" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
+                <button type="button" id="cancelPresentationBtn" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
+const SUPABASE_URL = 'https://rnlutvfzmnnxihgwcymw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJubHV0dmZ6bW5ueGloZ3djeW13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjAxMDcsImV4cCI6MjA4OTc5NjEwN30.2RfFEacIgG2XnvVRBFjcTELO26nt4T3zJP3v8-0JgTM';
+
+let supabaseClient;
+let users = [], students = [], evaluators = [], dopsEvals = [], monthlyEvals = [], presentationEvals = [], attendanceData = [], finalGrades = [];
+let currentUser = null;
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+function showLoading(show) { document.getElementById('loadingIndicator').classList.toggle('hidden', !show); }
+function updateStatus(success, msg) {
+    const el = document.getElementById('syncStatus');
+    if (el) { el.style.backgroundColor = success ? '#4CAF50' : '#f44336'; el.innerHTML = success ? `🟢 ${msg}` : `🔴 ${msg}`; }
+}
+function showSection(id) { document.querySelectorAll('.section').forEach(s => s.style.display = 'none'); document.getElementById(id).style.display = 'block'; }
+function showSectionForRole() {
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') { showSection('adminSection'); loadAdminDashboard(); }
+    else if (currentUser.role === 'evaluator') { showSection('evaluatorSection'); loadEvaluatorDashboard(); }
+    else if (currentUser.role === 'student') { showSection('studentSection'); loadStudentDashboard(); }
+}
+
+// ============================================
+// DATABASE FUNCTIONS
+// ============================================
+async function loadAllData() {
+    showLoading(true);
+    try {
+        const [u, s, e, d, m, p, a, f] = await Promise.all([
+            supabaseClient.from('users').select('*'),
+            supabaseClient.from('students').select('*'),
+            supabaseClient.from('evaluators').select('*'),
+            supabaseClient.from('dops_evals').select('*'),
+            supabaseClient.from('monthly_evals').select('*'),
+            supabaseClient.from('presentation_evals').select('*'),
+            supabaseClient.from('attendance_data').select('*'),
+            supabaseClient.from('final_grades').select('*')
+        ]);
+        if (u.error) throw u.error;
+        users = u.data || []; students = s.data || []; evaluators = e.data || [];
+        dopsEvals = d.data || []; monthlyEvals = m.data || []; presentationEvals = p.data || [];
+        attendanceData = a.data || []; finalGrades = f.data || [];
+        updateStatus(true, `${users.length} users loaded`);
+        showLoading(false);
+        return true;
+    } catch (err) { console.error(err); updateStatus(false, err.message); showLoading(false); return false; }
+}
+
+async function saveUser(user) { await supabaseClient.from('users').upsert(user, { onConflict: 'id' }); }
+async function saveStudent(student) { await supabaseClient.from('students').upsert(student, { onConflict: 'id' }); }
+async function saveEvaluator(eval) { await supabaseClient.from('evaluators').upsert(eval, { onConflict: 'id' }); }
+async function saveDopsEval(e) { await supabaseClient.from('dops_evals').insert(e); }
+async function saveMonthlyEval(e) { await supabaseClient.from('monthly_evals').insert(e); }
+async function savePresentationEval(e) { await supabaseClient.from('presentation_evals').insert(e); }
+async function saveAttendanceRecord(r) { await supabaseClient.from('attendance_data').upsert(r, { onConflict: 'id' }); }
+async function saveFinalGrade(g) { await supabaseClient.from('final_grades').upsert(g, { onConflict: 'id' }); }
+async function deleteUserById(id) { await supabaseClient.from('users').delete().eq('id', id); }
+
+// ============================================
+// BUILD FORM TABLES
+// ============================================
+function buildForms() {
+    // Pre-op table
+    const preTable = document.getElementById('preTable');
+    if (preTable) {
+        preTable.innerHTML = `
+            <tr><td>1. Correct indication for CS</td><td><input type="number" min="0" max="3" id="pre1" class="score-input"></td></tr>
+            <tr><td>2. Rapid maternal & fetal assessment</td><td><input type="number" min="0" max="3" id="pre2" class="score-input"></td></tr>
+            <tr><td>3. Informed consent obtained</td><td><input type="number" min="0" max="3" id="pre3" class="score-input"></td></tr>
+            <tr><td>4. Antibiotic prophylaxis given</td><td><input type="number" min="0" max="3" id="pre4" class="score-input"></td></tr>
+            <tr><td>5. Surgical safety checklist & team briefing</td><td><input type="number" min="0" max="3" id="pre5" class="score-input"></td></tr>
+        `;
     }
-    
-    // Display student dashboard
-    function displayStudentDashboard() {
-        const student = studentsList.find(s => s.user_id === currentUserObj.id);
-        const user = usersList.find(u => u.id === currentUserObj.id);
-        
-        const myDops = dopsList.filter(d => d.student_id === student?.id);
-        const myMonthly = monthlyList.filter(m => m.student_id === student?.id);
-        const myPres = presentationList.filter(p => p.student_id === student?.id);
-        
-        const studentInfo = document.getElementById('studentInfo');
-        if (studentInfo) {
-            studentInfo.innerHTML = `
-                <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
-                <p class="text-sm">Student ID: ${student?.student_id || 'Not assigned'}</p>
-            `;
-        }
-        
-        const dopsCount = document.getElementById('studentDopsCount');
-        const monthlyCount = document.getElementById('studentMonthlyCount');
-        const presCount = document.getElementById('studentPresCount');
-        
-        if (dopsCount) dopsCount.innerText = myDops.length;
-        if (monthlyCount) monthlyCount.innerText = myMonthly.length;
-        if (presCount) presCount.innerText = myPres.length;
-        
-        const evaluationsDiv = document.getElementById('studentEvaluations');
-        if (evaluationsDiv) {
-            evaluationsDiv.innerHTML = `
-                <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
-                ${myDops.map(d => `<div class="border rounded p-2 mb-2">${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
-                <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
-                ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
-                <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
-                ${myPres.map(p => `<div class="border rounded p-2 mb-2">${p.date} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
-            `;
-        }
+    // Intra-op table
+    const intraSteps = ['Proper positioning & asepsis', 'Skin incision (type & level)', 'Rectus sheath opening', 'Bladder reflection', 'Uterine incision', 'Delivery of fetus', 'Cord clamping & neonatal handover', 'Placental delivery', 'Uterine repair & hemostasis', 'Control of bleeding', 'Abdominal wall closure', 'Instrument handling and knot tying', 'Instrument & sponge count'];
+    const intraTable = document.getElementById('intraTable');
+    if (intraTable) {
+        intraTable.innerHTML = intraSteps.map((s, i) => `<tr><td>${i+1}. ${s}</td><td><input type="number" min="0" max="3" id="intra${i+1}" class="score-input"></td></tr>`).join('');
     }
-    
-    // Display evaluator dashboard
-    function displayEvaluatorDashboard() {
-        const evaluator = evaluatorsList.find(e => e.user_id === currentUserObj.id);
-        const user = usersList.find(u => u.id === currentUserObj.id);
-        
-        const myDops = dopsList.filter(d => d.evaluator_id === evaluator?.id);
-        const myMonthly = monthlyList.filter(m => m.evaluator_id === evaluator?.id);
-        const myPres = presentationList.filter(p => p.evaluator_id === evaluator?.id);
-        
-        const evaluatorInfo = document.getElementById('evaluatorInfo');
-        if (evaluatorInfo) {
-            evaluatorInfo.innerHTML = `
-                <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
-                <p class="text-sm">${evaluator?.title || 'Evaluator'} ${evaluator?.department ? `- ${evaluator.department}` : ''}</p>
-            `;
-        }
-        
-        const dopsCount = document.getElementById('evalDopsCount');
-        const monthlyCount = document.getElementById('evalMonthlyCount');
-        const presCount = document.getElementById('evalPresCount');
-        
-        if (dopsCount) dopsCount.innerText = myDops.length;
-        if (monthlyCount) monthlyCount.innerText = myMonthly.length;
-        if (presCount) presCount.innerText = myPres.length;
-        
-        const evaluationsDiv = document.getElementById('evaluatorEvaluations');
-        if (evaluationsDiv) {
-            evaluationsDiv.innerHTML = `
-                <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
-                ${myDops.map(d => `<div class="border rounded p-2 mb-2">Student ${d.student_id} - ${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
-                <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
-                ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">Student ${m.student_id} - ${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
-                <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
-                ${myPres.map(p => `<div class="border rounded p-2 mb-2">Student ${p.student_id} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
-                <div class="mt-4 p-3 bg-yellow-50 rounded text-sm">
-                    ⚡ Note: To create new evaluations, please use the full version with forms. This version displays existing data.
-                </div>
-            `;
-        }
+    // Post-op table
+    const postTable = document.getElementById('postTable');
+    if (postTable) {
+        postTable.innerHTML = `
+            <tr><td>1. Post-op orders & monitoring</td><td><input type="number" min="0" max="3" id="post1" class="score-input"></td></tr>
+            <tr><td>2. Documentation & handover</td><td><input type="number" min="0" max="3" id="post2" class="score-input"></td></tr>
+        `;
     }
-    
-    // PDF Download
-    window.downloadDopsPDF = async function(id) {
-        const d = dopsList.find(x => x.id === id);
-        if (!d) return;
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFontSize(16);
-        doc.text('DOPS Evaluation', 10, 10);
-        doc.setFontSize(12);
-        doc.text(`Student ID: ${d.student_id}`, 10, 25);
-        doc.text(`Date: ${d.date}`, 10, 35);
-        doc.text(`Case: ${d.case_no || 'N/A'}`, 10, 45);
-        doc.text(`Total Score: ${d.grand_total}/60`, 10, 55);
-        doc.text(`Competency: ${d.competency || 'N/A'}`, 10, 65);
-        doc.text(`Comments: ${d.comments || 'None'}`, 10, 75);
-        doc.save(`DOPS_${id}.pdf`);
-    };
-    
-    // Login
-    async function handleLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const role = document.getElementById('role').value;
-        
-        await loadAllData();
-        const user = usersList.find(u => u.username === username && u.password === password && u.role === role);
-        
-        if (user) {
-            currentUserObj = user;
-            document.getElementById('userName').innerHTML = `👤 ${user.first_name || user.username} (${user.role})`;
-            document.getElementById('logoutBtn').classList.remove('hidden');
-            
-            if (role === 'admin') {
-                showSection('adminSection');
-                displayUsersTable();
-                displayStats();
-                displayAllEvaluations();
-            } else if (role === 'student') {
-                showSection('studentSection');
-                displayStudentDashboard();
-            } else if (role === 'evaluator') {
-                showSection('evaluatorSection');
-                displayEvaluatorDashboard();
+    // Monthly competencies
+    const comps = [
+        {name:'Medical Knowledge',desc:'Pathophysiology, diagnosis, evidence-based practice',scale8:true},
+        {name:'Patient Assessment',desc:'History, examination, differential diagnosis',scale8:true},
+        {name:'Clinical Decision Making',desc:'Interpretation of data, formulation of mgt plans',scale8:true},
+        {name:'Procedural/Surgical Skills',desc:'Technical ability, asepsis, efficiency',scale8:true},
+        {name:'Emergency Management',desc:'Response to obstetric/gynecologic emergencies',scale8:true},
+        {name:'Professionalism and Ethics',desc:'Accountability, respect, confidentiality',scale8:true},
+        {name:'Leadership and Teamwork',desc:'Collaboration, initiative, adaptability',scale8:false},
+        {name:'Commitment to Learning',desc:'Self-directed learning, feedback integration',scale8:false},
+        {name:'Patient Safety and Quality of Care',desc:'Error recognition, reporting, safety culture',scale8:false}
+    ];
+    const monthlyComp = document.getElementById('monthlyCompetencies');
+    if (monthlyComp) {
+        monthlyComp.innerHTML = comps.map((c, i) => {
+            let radios = '';
+            if (c.scale8) {
+                radios = `<td><div class="radio-group"><label><input type="radio" name="comp${i+1}" value="8">8</label><label><input type="radio" name="comp${i+1}" value="7">7</label></div></td>
+                         <td><div class="radio-group"><label><input type="radio" name="comp${i+1}" value="6">6</label><label><input type="radio" name="comp${i+1}" value="5">5</label></div></td>
+                         <td><div class="radio-group"><label><input type="radio" name="comp${i+1}" value="4">4</label><label><input type="radio" name="comp${i+1}" value="3">3</label></div></td>
+                         <td><div class="radio-group"><label><input type="radio" name="comp${i+1}" value="2">2</label><label><input type="radio" name="comp${i+1}" value="1">1</label></div></td>`;
+            } else {
+                radios = `<td colspan="4"><div class="flex justify-center gap-4">${[5,4,3,2,1].map(v => `<label><input type="radio" name="comp${i+1}" value="${v}">${v}</label>`).join('')}</div></td>`;
             }
-        } else {
-            alert('Invalid credentials. Use:\nAdmin: admin/4141\nEvaluator: eval1/pass\nStudent: student1/pass');
-        }
+            return `<tr><td><strong>${c.name}</strong><br><span class="competency-desc">${c.desc}</span></td>${radios}</tr>`;
+        }).join('');
     }
-    
-    // Logout
-    function handleLogout() {
-        currentUserObj = null;
-        document.getElementById('userName').innerHTML = '';
-        document.getElementById('logoutBtn').classList.add('hidden');
-        showSection('loginSection');
-    }
-    
-    // Event listeners
-    document.getElementById('loginBtn').addEventListener('click', handleLogin);
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    
-    // Start app
-    initializeApp();
-    </script>
+}
+
+// ============================================
+// ADMIN FUNCTIONS
+// ============================================
+function loadAdminDashboard() { loadUsersTable(); loadDopsList(); loadMonthlyList(); loadPresentationList(); loadAttendanceMatrix(); loadFinalGrades(); }
+
+function loadUsersTable() {
+    const tbody = document.getElementById('userTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    users.forEach(u => {
+        const row = tbody.insertRow();
+        row.insertCell().innerText = u.id;
+        row.insertCell().innerText = u.username;
+        row.insertCell().innerText = u.visible_password;
+        row.insertCell().innerText = u.role;
+        const photoCell = row.insertCell();
+        photoCell.className = 'photo-upload-cell';
+        if (u.role === 'student') {
+            const s = students.find(s => s.user_id === u.id);
+            if (s && s.photo) { let img = document.createElement('img'); img.src = s.photo; img.className = 'student-photo-thumb'; photoCell.appendChild(img); }
+            else { let span = document.createElement('span'); span.innerText = 'no photo'; span.className = 'text-xs text-gray-400'; photoCell.appendChild(span); }
+            let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.className = 'text-xs mt-1';
+            input.onchange = async (e) => { if (e.target.files[0] && s) { let reader = new FileReader(); reader.onload = async (ev) => { s.photo = ev.target.result; await saveStudent(s); await loadAllData(); loadUsersTable(); updateStatus(true, 'Photo uploaded'); }; reader.readAsDataURL(e.target.files[0]); } };
+            photoCell.appendChild(input);
+        } else photoCell.innerText = '—';
+        let del = document.createElement('button'); del.innerText = 'Delete'; del.className = 'bg-red-500 text-white px-2 py-1 rounded text-xs';
+        del.onclick = async () => { if (u.id === currentUser?.id) alert('Cannot delete self'); else { await deleteUserById(u.id); await loadAllData(); loadUsersTable(); } };
+        row.insertCell().appendChild(del);
+    });
+}
+
+function loadDopsList() { let c = document.getElementById('adminDopsList'); if(c){c.innerHTML=dopsEvals.map(d=>`<div class="border p-2 mb-2"><strong>Student ID:</strong> ${d.student_id} | <strong>Date:</strong> ${d.date} | <strong>Score:</strong> ${d.grand_total}/60</div>`).join('')||'None';} }
+function loadMonthlyList() { let c = document.getElementById('adminMonthlyList'); if(c){c.innerHTML=monthlyEvals.map(m=>`<div class="border p-2 mb-2"><strong>Student ID:</strong> ${m.student_id} | <strong>Period:</strong> ${m.date_from} to ${m.date_to} | <strong>Score:</strong> ${m.total_score}/63</div>`).join('')||'None';} }
+function loadPresentationList() { let c = document.getElementById('adminPresentationList'); if(c){c.innerHTML=presentationEvals.map(p=>`<div class="border p-2 mb-2"><strong>Student ID:</strong> ${p.student_id} | <strong>Date:</strong> ${p.date} | <strong>Title:</strong> ${p.title} | <strong>Score:</strong> ${p.total_score}/90</div>`).join('')||'None';} }
+
+function loadAttendanceMatrix() {
+    const header = document.getElementById('attendanceMatrixHeader'), body = document.getElementById('attendanceMatrixBody');
+    if (!header || !body) return;
+    const sorted = [...attendanceData].sort((a,b)=>new Date(a.date)-new Date(b.date));
+    header.innerHTML = ' <th>Student</th>' + sorted.map(d=>`<th>${d.date} <button class="text-red-500 text-xs ml-1" onclick="removeAttendanceDate('${d.date}')">✖</button></th>`).join('');
+    body.innerHTML = students.map(s => { let u = users.find(x=>x.id===s.user_id); if(!u) return ''; return ` <td>${u.first_name} ${u.last_name}</td>` + sorted.map(d => ` <td><select class="attendance-select border p-1" data-student="${s.id}" data-date="${d.date}">${['Present','Absent','Late','NA'].map(opt=>`<option value="${opt}" ${(d.records?.[s.id]||'NA')===opt?'selected':''}>${opt}</option>`).join('')}</select></td>`).join('') + ' '; }).join('');
+}
+window.removeAttendanceDate = async (date) => { await supabaseClient.from('attendance_data').delete().eq('date', date); await loadAllData(); loadAttendanceMatrix(); };
+function getDatesInMonth(y,m) { let dates=[]; let d=new Date(y,m,1); while(d.getMonth()===m){dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);d.setDate(d.getDate()+1);} return dates; }
+
+function computeStudentAverages(sid) {
+    const sd = dopsEvals.filter(d=>d.student_id===sid), avgDops = sd.length ? sd.reduce((s,d)=>s+(d.grand_total/60*100),0)/sd.length : 0;
+    const sm = monthlyEvals.filter(m=>m.student_id===sid), avgMonthly = sm.length ? sm.reduce((s,m)=>s+(m.total_score/63*100),0)/sm.length : 0;
+    const sp = presentationEvals.filter(p=>p.student_id===sid); let avgPres = 0;
+    if(sp.length){ let total=0; sp.forEach(p=>{ let scored=(p.scores||[]).filter(s=>s!==null); let sum=scored.reduce((a,b)=>a+b,0); let max=scored.length*5; total+=max>0?(sum/max*100):0; }); avgPres=total/sp.length; }
+    let totalW=0,totalD=0; attendanceData.forEach(day=>{ let st=day.records?.[sid]; if(st&&st!=='NA'){ totalD++; if(st==='Present') totalW+=1; else if(st==='Late') totalW+=0.5; } }); let attPct=totalD>0?(totalW/totalD)*100:0;
+    return { avgDops, avgMonthly, avgPres, attendancePct:attPct };
+}
+
+function loadFinalGrades() {
+    const tbody = document.getElementById('finalGradesBody'); if(!tbody) return;
+    tbody.innerHTML = '';
+    students.forEach(s => {
+        let u = users.find(x=>x.id===s.user_id); if(!u) return;
+        let a = computeStudentAverages(s.id);
+        let comp = (a.avgDops + a.avgMonthly + a.avgPres + a.attendancePct)/4;
+        let compW = comp * 0.25;
+        let fg = finalGrades.find(f=>f.student_id===s.id) || { exam_score:0, committee_points:0 };
+        let finalPct = compW + (fg.exam_score||0) + (fg.committee_points||0);
+        let grade = finalPct>=85?'Distinction':(finalPct>=80?'Good':(finalPct>=70?'Satisfactory':'Fail'));
+        let row = tbody.insertRow();
+        row.insertCell().innerText = `${u.first_name} ${u.last_name}`;
+        row.insertCell().innerText = a.avgDops.toFixed(1)+'%';
+        row.insertCell().innerText = a.avgMonthly.toFixed(1)+'%';
+        row.insertCell().innerText = a.avgPres.toFixed(1)+'%';
+        row.insertCell().innerText = a.attendancePct.toFixed(1)+'%';
+        row.insertCell().innerText = comp.toFixed(1)+'%';
+        let examCell = row.insertCell(); let examInp = document.createElement('input'); examInp.type='number'; examInp.value=fg.exam_score||0; examInp.min=0; examInp.max=70; examInp.className='border p-1 w-20';
+        examInp.onchange = async () => { fg.exam_score = parseFloat(examInp.value)||0; await saveFinalGrade(fg); loadFinalGrades(); };
+        examCell.appendChild(examInp);
+        let comCell = row.insertCell(); let comInp = document.createElement('input'); comInp.type='number'; comInp.value=fg.committee_points||0; comInp.min=0; comInp.max=5; comInp.className='border p-1 w-20';
+        comInp.onchange = async () => { fg.committee_points = parseFloat(comInp.value)||0; await saveFinalGrade(fg); loadFinalGrades(); };
+        comCell.appendChild(comInp);
+        row.insertCell().innerText = finalPct.toFixed(1)+'%';
+        row.insertCell().innerText = grade;
+    });
+}
+
+// ============================================
+// EVALUATOR FUNCTIONS
+// ============================================
+function loadEvaluatorDashboard() { populateStudentSelect(); loadMyEvals(); }
+
+function populateStudentSelect() {
+    let sel = document.getElementById('studentSelect'); if(!sel) return;
+    sel.innerHTML = '<option value="">Select Student</option>';
+    students.forEach(s => { let u = users.find(x=>x.id===s.user_id); if(u) sel.innerHTML += `<option value="${s.id}">${u.first_name} ${u.last_name} (${u.username})</option>`; });
+    sel.onchange = () => { let sid = sel.value, stu = students.find(x=>x.id==sid), img = document.getElementById('selectedStudentPhoto'), msg = document.getElementById('noStudentPhotoMsg'); if(stu&&stu.photo){ img.src=stu.photo; img.classList.remove('hidden'); msg.classList.add('hidden'); } else { img.classList.add('hidden'); msg.classList.remove('hidden'); } };
+}
+
+const presentationCriteria = ["The presenter maintained appropriate eye contact throughout","The presenter spoke in a strong voice at an appropriate pace throughout the presentation.","The slides were visually appealing, easy to read, and contained no spelling errors.","The presenter was clearly knowledgeable on the topic presented.","The presenter actively engaged the audience in this learning activity.","The speaker adequately answered questions and provided clarification when necessary.","Nice grooming and prepared physically","The presenter was confidence to his presentation, knowledge & speech","The presentation was organized and presented in logical fashion","The presentation met expectations based on the learned objectives.","Clear content and objectives","Contents are updated","History taking & physical examination presented short with all details","Appropriate differential diagnoses and justifications.","Diagnostic reasoning with Investigation & Interpretation","References are clear and from good sources","Appropriate conclusion and comments","Time frame was appropriate"];
+
+function buildPresentationForm() {
+    const tbody = document.getElementById('presentationCriteriaBody'); if(!tbody) return;
+    tbody.innerHTML = '';
+    presentationCriteria.forEach((c,i) => {
+        let row = tbody.insertRow();
+        row.insertCell().innerText = i+1;
+        row.insertCell().innerText = c;
+        let scoreCell = row.insertCell(); let div = document.createElement('div'); div.className = 'flex gap-2 flex-wrap';
+        for(let v=1;v<=5;v++){ let lbl=document.createElement('label'); lbl.className='flex items-center gap-1'; let rad=document.createElement('input'); rad.type='radio'; rad.name=`pres_score_${i}`; rad.value=v; lbl.appendChild(rad); lbl.appendChild(document.createTextNode(v)); div.appendChild(lbl); }
+        let naLbl=document.createElement('label'); naLbl.className='flex items-center gap-1'; let naRad=document.createElement('input'); naRad.type='radio'; naRad.name=`pres_score_${i}`; naRad.value='na'; naLbl.appendChild(naRad); naLbl.appendChild(document.createTextNode('NA')); div.appendChild(naLbl);
+        scoreCell.appendChild(div);
+        let comCell = row.insertCell(); let inp = document.createElement('input'); inp.type='text'; inp.id=`pres_comment_${i}`; inp.className='border p-1 w-full text-sm'; comCell.appendChild(inp);
+    });
+}
+
+function loadMyEvals() {
+    let c = document.getElementById('myEvalsList'); if(!c) return;
+    let evalRec = evaluators.find(e=>e.user_id===currentUser?.id);
+    if(!evalRec) { c.innerHTML='<p>No evaluator profile</p>'; return; }
+    let myDops = dopsEvals.filter(d=>d.evaluator_id===evalRec.id);
+    let myMonthly = monthlyEvals.filter(m=>m.evaluator_id===evalRec.id);
+    let myPres = presentationEvals.filter(p=>p.evaluator_id===evalRec.id);
+    c.innerHTML = '';
+    if(myDops.length){ let div=document.createElement('div'); div.innerHTML='<h4 class="font-semibold">DOPS</h4>'; myDops.forEach(d=>{let btn=document.createElement('button'); btn.innerText=`Download DOPS ${d.id}`; btn.className='bg-blue-500 text-white px-2 py-1 rounded text-sm m-1'; btn.onclick=()=>generateDopsPDF(d.id); div.appendChild(btn);}); c.appendChild(div);}
+    if(myMonthly.length){ let div=document.createElement('div'); div.innerHTML='<h4 class="font-semibold">Monthly</h4>'; myMonthly.forEach(m=>{let btn=document.createElement('button'); btn.innerText=`Download Monthly ${m.id}`; btn.className='bg-blue-500 text-white px-2 py-1 rounded text-sm m-1'; btn.onclick=()=>generateMonthlyPDF(m.id); div.appendChild(btn);}); c.appendChild(div);}
+    if(myPres.length){ let div=document.createElement('div'); div.innerHTML='<h4 class="font-semibold">Presentations</h4>'; myPres.forEach(p=>{let btn=document.createElement('button'); btn.innerText=`Download Presentation ${p.id}`; btn.className='bg-blue-500 text-white px-2 py-1 rounded text-sm m-1'; btn.onclick=()=>generatePresentationPDF(p.id); div.appendChild(btn);}); c.appendChild(div);}
+}
+
+// ============================================
+// STUDENT FUNCTIONS
+// ============================================
+function loadStudentDashboard() {
+    let s = students.find(x=>x.user_id===currentUser?.id);
+    if(!s){ document.getElementById('studentDops').innerText='No profile'; return; }
+    let img=document.getElementById('studentPhotoImg'), miss=document.getElementById('studentPhotoMissing');
+    if(s.photo){ img.src=s.photo; img.style.display='inline'; miss.style.display='none'; } else { img.style.display='none'; miss.style.display='block'; }
+    let myDops=dopsEvals.filter(d=>d.student_id===s.id); document.getElementById('studentDops').innerHTML=myDops.map(d=>`<div class="border p-1 mb-1">${d.date} - ${d.type} - Score: ${d.grand_total}/60</div>`).join('')||'None';
+    document.getElementById('studentDopsCount').innerText=myDops.length;
+    let myMonthly=monthlyEvals.filter(m=>m.student_id===s.id); document.getElementById('studentMonthly').innerHTML=myMonthly.map(m=>`<div class="border p-1 mb-1">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('')||'None';
+    document.getElementById('studentMonthlyCount').innerText=myMonthly.length;
+    let myPres=presentationEvals.filter(p=>p.student_id===s.id); document.getElementById('studentPresentation').innerHTML=myPres.map(p=>`<div class="border p-1 mb-1">${p.date} - ${p.title} - Score: ${p.total_score}/90</div>`).join('')||'None';
+    document.getElementById('studentPresCount').innerText=myPres.length;
+    let att=attendanceData.map(d=>({date:d.date,status:d.records?.[s.id]})).filter(a=>a.status&&a.status!=='NA'); document.getElementById('studentAttendance').innerHTML=att.map(a=>`<div class="border p-1 mb-1">${a.date} - ${a.status}</div>`).join('')||'None';
+    let avg=computeStudentAverages(s.id); document.getElementById('studentAttendancePercent').innerText=avg.attendancePct.toFixed(1)+'%';
+    let comp=(avg.avgDops+avg.avgMonthly+avg.avgPres+avg.attendancePct)/4; let compW=comp*0.25; let fg=finalGrades.find(f=>f.student_id===s.id)||{exam_score:0,committee_points:0}; let finalPct=compW+(fg.exam_score||0)+(fg.committee_points||0); let grade=finalPct>=85?'Distinction':(finalPct>=80?'Good':(finalPct>=70?'Satisfactory':'Fail')); document.getElementById('studentOverallGrade').innerHTML=`<strong>Final Grade:</strong> ${finalPct.toFixed(1)}% (${grade})`;
+}
+
+// ============================================
+// PDF GENERATION
+// ============================================
+async function generateDopsPDF(id){ let d=dopsEvals.find(x=>x.id===id); if(!d)return; let s=students.find(x=>x.id===d.student_id), u=users.find(x=>x.id===s?.user_id); let {jsPDF}=window.jspdf; let doc=new jsPDF(); doc.setFontSize(16); doc.text('DOPS Evaluation',10,10); doc.setFontSize(12); doc.text(`Student: ${u?.first_name||''} ${u?.last_name||''}`,10,20); doc.text(`Date: ${d.date}`,10,30); doc.text(`Case: ${d.case_no}`,10,40); doc.text(`Grand Total: ${d.grand_total}/60`,10,50); doc.text(`Comments: ${d.comments}`,10,60); doc.save(`DOPS_${id}.pdf`); }
+async function generateMonthlyPDF(id){ let m=monthlyEvals.find(x=>x.id===id); if(!m)return; let s=students.find(x=>x.id===m.student_id), u=users.find(x=>x.id===s?.user_id); let {jsPDF}=window.jspdf; let doc=new jsPDF(); doc.setFontSize(16); doc.text('Monthly Evaluation',10,10); doc.setFontSize(12); doc.text(`Student: ${u?.first_name||''} ${u?.last_name||''}`,10,20); doc.text(`Period: ${m.date_from} to ${m.date_to}`,10,30); doc.text(`Total Score: ${m.total_score}/63`,10,40); doc.text(`Comments: ${m.comments}`,10,50); doc.save(`Monthly_${id}.pdf`); }
+async function generatePresentationPDF(id){ let p=presentationEvals.find(x=>x.id===id); if(!p)return; let s=students.find(x=>x.id===p.student_id), u=users.find(x=>x.id===s?.user_id); let {jsPDF}=window.jspdf; let doc=new jsPDF(); doc.setFontSize(16); doc.text('Presentation Evaluation',10,10); doc.setFontSize(12); doc.text(`Student: ${u?.first_name||''} ${u?.last_name||''}`,10,20); doc.text(`Title: ${p.title}`,10,30); doc.text(`Total Score: ${p.total_score}/90`,10,40); doc.save(`Presentation_${id}.pdf`); }
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+document.getElementById('loginBtn').onclick = async () => {
+    let un = document.getElementById('loginUsername').value, pw = document.getElementById('loginPassword').value, role = document.getElementById('loginRole').value;
+    await loadAllData();
+    let user = users.find(u=>u.username===un && u.password===pw && u.role===role);
+    if(user){ currentUser=user; document.getElementById('currentUser').innerText=`${user.first_name||user.username} (${user.role})`; document.getElementById('logoutBtn').classList.remove('hidden'); showSectionForRole(); updateStatus(true,`Welcome ${user.first_name||user.username}`); }
+    else alert('Invalid credentials');
+};
+document.getElementById('logoutBtn').onclick = () => { currentUser=null; document.getElementById('currentUser').innerText=''; document.getElementById('logoutBtn').classList.add('hidden'); showSection('loginSection'); };
+document.getElementById('addUserBtn').onclick = async () => {
+    let un=document.getElementById('newUsername').value.trim(), pw=document.getElementById('newPassword').value, role=document.getElementById('newRole').value;
+    if(!un||!pw){alert('Required');return;}
+    let newId=users.length?Math.max(...users.map(u=>u.id))+1:1;
+    let newUser={id:newId,username:un,password:pw,visible_password:pw,role,first_name:un,last_name:''};
+    users.push(newUser); await saveUser(newUser);
+    if(role==='student'){ let newStudent={id:students.length+1,user_id:newId,student_id:`STU${newId}`,cohort:'',photo:null}; students.push(newStudent); await saveStudent(newStudent); await saveFinalGrade({id:finalGrades.length+1,student_id:newStudent.id,exam_score:0,committee_points:0}); }
+    else if(role==='evaluator'){ let newEval={id:evaluators.length+1,user_id:newId,title:'',department:''}; evaluators.push(newEval); await saveEvaluator(newEval); }
+    await loadAllData(); loadUsersTable(); document.getElementById('newUsername').value=''; document.getElementById('newPassword').value=''; updateStatus(true,'User added');
+};
+document.getElementById('addMonthBtn').onclick = async () => {
+    let month=document.getElementById('attendanceMonth').value; if(!month){alert('Select month');return;}
+    let [y,m]=month.split('-').map(Number); let dates=getDatesInMonth(y,m-1); let added=0;
+    for(let d of dates){ if(!attendanceData.some(x=>x.date===d)){ let rec={id:attendanceData.length+1,date:d,records:{}}; students.forEach(s=>rec.records[s.id]='NA'); attendanceData.push(rec); await saveAttendanceRecord(rec); added++; } }
+    if(added){ await loadAllData(); loadAttendanceMatrix(); updateStatus(true,`Added ${added} days`); alert(`Added ${added} days`); } else alert('All days exist');
+};
+document.getElementById('saveAttendanceMatrixBtn').onclick = async () => {
+    let sel=document.querySelectorAll('.attendance-select');
+    for(let s of sel){ let sid=parseInt(s.dataset.student), date=s.dataset.date, status=s.value, day=attendanceData.find(d=>d.date===date); if(day){ day.records[sid]=status; await saveAttendanceRecord(day); } }
+    await loadAllData(); updateStatus(true,'Attendance saved'); alert('Saved');
+};
+document.getElementById('startDopsBtn').onclick = () => { let sid=document.getElementById('studentSelect').value; if(!sid){alert('Select student');return;} document.getElementById('dopsStudentId').value=sid; document.getElementById('dopsDate').value=new Date().toISOString().split('T')[0]; document.querySelectorAll('#dopsForm .score-input').forEach(i=>i.value=''); showSection('dopsFormContainer'); };
+document.getElementById('cancelDopsBtn').onclick = showSectionForRole;
+document.getElementById('saveDopsBtn').onclick = async () => {
+    let sid=parseInt(document.getElementById('dopsStudentId').value); if(!sid)return;
+    let evalRec=evaluators.find(e=>e.user_id===currentUser?.id); if(!evalRec){alert('No evaluator profile');return;}
+    let pre=[1,2,3,4,5].map(i=>parseInt(document.getElementById(`pre${i}`).value)||0);
+    let intra=[1,2,3,4,5,6,7,8,9,10,11,12,13].map(i=>parseInt(document.getElementById(`intra${i}`).value)||0);
+    let post=[1,2].map(i=>parseInt(document.getElementById(`post${i}`).value)||0);
+    let total=[...pre,...intra,...post].reduce((a,b)=>a+b,0);
+    let comp=total>=51?'Competent Independently':(total>=40?'Competent with Supervision':'Not Yet Competent');
+    let newEval={id:dopsEvals.length+1,student_id:sid,evaluator_id:evalRec.id,date:document.getElementById('dopsDate').value,case_no:document.getElementById('dopsCaseNo').value,type:document.getElementById('dopsType').value,indications:document.getElementById('dopsIndications').value,pre_scores:pre,intra_scores:intra,post_scores:post,grand_total:total,competency:comp,comments:document.getElementById('dopsComments').value,evaluator_signature:`${currentUser.first_name} ${currentUser.last_name}`,date_signed:new Date().toISOString().split('T')[0]};
+    await saveDopsEval(newEval); await loadAllData(); updateStatus(true,'DOPS saved'); alert('Saved'); showSectionForRole();
+};
+document.getElementById('startMonthlyBtn').onclick = () => { let sid=document.getElementById('studentSelect').value; if(!sid){alert('Select student');return;} document.getElementById('monthlyStudentId').value=sid; document.querySelectorAll('#monthlyForm input[type=radio]').forEach(r=>r.checked=false); showSection('monthlyFormContainer'); };
+document.getElementById('cancelMonthlyBtn').onclick = showSectionForRole;
+document.getElementById('saveMonthlyBtn').onclick = async () => {
+    let sid=parseInt(document.getElementById('monthlyStudentId').value); if(!sid)return;
+    let evalRec=evaluators.find(e=>e.user_id===currentUser?.id); if(!evalRec){alert('No evaluator profile');return;}
+    let scores=[]; for(let i=1;i<=9;i++){ let sel=document.querySelector(`input[name="comp${i}"]:checked`); scores.push(sel?parseInt(sel.value):0); }
+    if(scores.includes(0)&&!confirm('Missing scores. Continue?'))return;
+    let newEval={id:monthlyEvals.length+1,student_id:sid,evaluator_id:evalRec.id,attachment_site:document.getElementById('monthlySite').value,date_from:document.getElementById('monthlyFrom').value,date_to:document.getElementById('monthlyTo').value,scores:scores,total_score:scores.reduce((a,b)=>a+b,0),comments:document.getElementById('monthlyComments').value,evaluator_signature:`${currentUser.first_name} ${currentUser.last_name}`,date:new Date().toISOString().split('T')[0]};
+    await saveMonthlyEval(newEval); await loadAllData(); updateStatus(true,'Monthly saved'); alert('Saved'); showSectionForRole();
+};
+document.getElementById('startPresentationBtn').onclick = () => { let sid=document.getElementById('studentSelect').value; if(!sid){alert('Select student');return;} document.getElementById('presentationStudentId').value=sid; document.getElementById('presentationDate').value=new Date().toISOString().split('T')[0]; buildPresentationForm(); showSection('presentationFormContainer'); };
+document.getElementById('cancelPresentationBtn').onclick = showSectionForRole;
+document.getElementById('savePresentationBtn').onclick = async () => {
+    let sid=parseInt(document.getElementById('presentationStudentId').value); if(!sid)return;
+    let evalRec=evaluators.find(e=>e.user_id===currentUser?.id); if(!evalRec){alert('No evaluator profile');return;}
+    let scores=[], comments=[];
+    for(let i=0;i<presentationCriteria.length;i++){ let rad=document.getElementsByName(`pres_score_${i}`); let val=null; for(let r of rad) if(r.checked){val=r.value==='na'?null:parseInt(r.value);break;} scores.push(val); comments.push(document.getElementById(`pres_comment_${i}`)?.value||''); }
+    let total=scores.reduce((s,v)=>s+(v||0),0);
+    let newEval={id:presentationEvals.length+1,student_id:sid,evaluator_id:evalRec.id,presenter:document.getElementById('presentationPresenter').value,title:document.getElementById('presentationTitle').value,type:document.getElementById('presentationType').value,date:document.getElementById('presentationDate').value,scores:scores,comments:comments,total_score:total,evaluator_name:document.getElementById('presentationEvalName').value,evaluator_signature:document.getElementById('presentationEvalSignature').value,date_signed:new Date().toISOString().split('T')[0]};
+    await savePresentationEval(newEval); await loadAllData(); updateStatus(true,'Presentation saved'); alert('Saved'); showSectionForRole();
+};
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',e=>{ document.querySelectorAll('.tab-btn').forEach(b=>b.classList.replace('bg-blue-600','bg-gray-300')); e.target.classList.replace('bg-gray-300','bg-blue-600'); document.querySelectorAll('.tab-content').forEach(c=>c.classList.add('hidden')); document.getElementById(e.target.dataset.tab).classList.remove('hidden'); if(e.target.dataset.tab==='adminFinalGrades')loadFinalGrades(); if(e.target.dataset.tab==='adminAttendance')loadAttendanceMatrix(); }));
+document.querySelectorAll('.eval-tab-btn').forEach(btn=>btn.addEventListener('click',e=>{ document.querySelectorAll('.eval-tab-btn').forEach(b=>b.classList.replace('bg-blue-600','bg-gray-300')); e.target.classList.replace('bg-gray-300','bg-blue-600'); document.querySelectorAll('.eval-tab-content').forEach(c=>c.classList.add('hidden')); document.getElementById(e.target.dataset.evalTab).classList.remove('hidden'); }));
+
+// Initialize
+async function init() {
+    buildForms();
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await loadAllData();
+    showSection('loginSection');
+    updateStatus(true, 'Ready');
+}
+init();
+</script>
 </body>
 </html>
