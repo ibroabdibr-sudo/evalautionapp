@@ -29,13 +29,21 @@
         .attendance-table th, .attendance-table td { min-width: 100px; }
         .student-photo-thumb { max-width: 60px; max-height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; }
         .photo-upload-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .sync-status { position: fixed; bottom: 10px; right: 10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000; font-family: monospace; }
+        .sync-status { position: fixed; bottom: 10px; right: 10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000; font-family: monospace; cursor: pointer; }
+        .loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10000; text-align: center; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 p-4">
 <div class="container mx-auto max-w-7xl">
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading hidden">
+        <div class="text-blue-600 text-xl">Loading...</div>
+        <div class="text-gray-500 text-sm mt-2">Connecting to database</div>
+    </div>
+    
     <!-- Sync Status Indicator -->
-    <div id="syncStatus" class="sync-status">🟢 Connected</div>
+    <div id="syncStatus" class="sync-status">🟢 Initializing...</div>
     
     <!-- Header -->
     <div class="flex justify-between items-center mb-4">
@@ -48,10 +56,10 @@
 
     <!-- Login Section -->
     <div id="loginSection" class="section form-card max-w-md mx-auto mt-10">
-        <h2 class="text-xl font-semibold mb-4">Login</h2>
+        <h2 class="text-xl font-semibold mb-4">Login to System</h2>
         <div class="mb-3">
-            <label class="block text-sm font-medium">Name</label>
-            <input type="text" id="loginUsername" placeholder="Enter your name" class="w-full border rounded p-2">
+            <label class="block text-sm font-medium">Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter your username" class="w-full border rounded p-2">
         </div>
         <div class="mb-3">
             <label class="block text-sm font-medium">Password</label>
@@ -66,6 +74,12 @@
             </select>
         </div>
         <button id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Login</button>
+        <div class="text-center text-sm text-gray-500 mt-4">
+            <p>Demo Accounts:</p>
+            <p>Admin: admin / 4141</p>
+            <p>Evaluator: eval1 / pass</p>
+            <p>Student: student1 / pass</p>
+        </div>
     </div>
 
     <!-- Admin Dashboard -->
@@ -97,9 +111,9 @@
             <div class="form-card overflow-x-auto">
                 <h3 class="text-lg font-semibold mb-2">All Users</h3>
                 <table class="min-w-full">
-                    <thead><tr><th>ID</th><th>Name</th><th>Password</th><th>Role</th><th>Photo</th><th>Action</th></tr></thead>
+                    <thead>运转<th>ID</th><th>Name</th><th>Password</th><th>Role</th><th>Photo</th><th>Action</th> </thead>
                     <tbody id="userTableBody"></tbody>
-                </table>
+                 </table>
             </div>
         </div>
 
@@ -147,7 +161,7 @@
             <h3 class="text-xl font-semibold mb-2">Final Grades</h3>
             <div class="form-card overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead><tr><th>Student</th><th>Avg DOPS%</th><th>Avg Monthly%</th><th>Avg Presentation%</th><th>Attendance%</th><th>Composite (25%)</th><th>Exam (0-70)</th><th>Committee (0-5)</th><th>Final %</th><th>Grade</th></tr></thead>
+                    <thead> <th>Student</th><th>Avg DOPS%</th><th>Avg Monthly%</th><th>Avg Presentation%</th><th>Attendance%</th><th>Composite (25%)</th><th>Exam (0-70)</th><th>Committee (0-5)</th><th>Final %</th><th>Grade</th> </thead>
                     <tbody id="finalGradesBody"></tbody>
                 </table>
             </div>
@@ -232,40 +246,34 @@
                 <div><label>Indications</label><input type="text" id="dopsIndications" class="border p-2 w-full"></div>
             </div>
             <h3 class="font-semibold mt-4">Pre‑operative Assessment & Preparation</h3>
-            <table><thead><tr><th>Activity</th><th>Score (0-3)</th></tr></thead>
-                <tbody>
-                    <tr><td>1. Correct indication for CS</td><td><input type="number" min="0" max="3" id="pre1" class="score-input"></td></tr>
-                    <tr><td>2. Rapid maternal & fetal assessment</td><td><input type="number" min="0" max="3" id="pre2" class="score-input"></td></tr>
-                    <tr><td>3. Informed consent obtained</td><td><input type="number" min="0" max="3" id="pre3" class="score-input"></td></tr>
-                    <tr><td>4. Antibiotic prophylaxis given</td><td><input type="number" min="0" max="3" id="pre4" class="score-input"></td></tr>
-                    <tr><td>5. Surgical safety checklist & team briefing</td><td><input type="number" min="0" max="3" id="pre5" class="score-input"></td></tr>
-                </tbody>
-            </table>
+            <table class="w-full"><thead><th>Activity</th><th>Score (0-3)</th></thead><tbody>
+                <tr><td>1. Correct indication for CS</td><td><input type="number" min="0" max="3" id="pre1" class="score-input w-20"></td></tr>
+                <tr><td>2. Rapid maternal & fetal assessment</td><td><input type="number" min="0" max="3" id="pre2" class="score-input w-20"></td></tr>
+                <tr><td>3. Informed consent obtained</td><td><input type="number" min="0" max="3" id="pre3" class="score-input w-20"></td></tr>
+                <tr><td>4. Antibiotic prophylaxis given</td><td><input type="number" min="0" max="3" id="pre4" class="score-input w-20"></td></tr>
+                <tr><td>5. Surgical safety checklist & team briefing</td><td><input type="number" min="0" max="3" id="pre5" class="score-input w-20"></td></tr>
+            </tbody></table>
             <h3 class="font-semibold mt-4">Intra‑operative Technical Skills</h3>
-            <table><thead><tr><th>Step</th><th>Score (0-3)</th></tr></thead>
-                <tbody>
-                    <tr><td>1. Proper positioning & asepsis</td><td><input type="number" min="0" max="3" id="intra1" class="score-input"></td></tr>
-                    <tr><td>2. Skin incision (type & level)</td><td><input type="number" min="0" max="3" id="intra2" class="score-input"></td></tr>
-                    <tr><td>3. Rectus sheath opening</td><td><input type="number" min="0" max="3" id="intra3" class="score-input"></td></tr>
-                    <tr><td>4. Bladder reflection</td><td><input type="number" min="0" max="3" id="intra4" class="score-input"></td></tr>
-                    <tr><td>5. Uterine incision</td><td><input type="number" min="0" max="3" id="intra5" class="score-input"></td></tr>
-                    <tr><td>6. Delivery of fetus</td><td><input type="number" min="0" max="3" id="intra6" class="score-input"></td></tr>
-                    <tr><td>7. Cord clamping & neonatal handover</td><td><input type="number" min="0" max="3" id="intra7" class="score-input"></td></tr>
-                    <tr><td>8. Placental delivery</td><td><input type="number" min="0" max="3" id="intra8" class="score-input"></td></tr>
-                    <tr><td>9. Uterine repair & hemostasis</td><td><input type="number" min="0" max="3" id="intra9" class="score-input"></td></tr>
-                    <tr><td>10. Control of bleeding</td><td><input type="number" min="0" max="3" id="intra10" class="score-input"></td></tr>
-                    <tr><td>11. Abdominal wall closure</td><td><input type="number" min="0" max="3" id="intra11" class="score-input"></td></tr>
-                    <tr><td>12. Instrument handling and knot tying</td><td><input type="number" min="0" max="3" id="intra12" class="score-input"></td></tr>
-                    <tr><td>13. Instrument & sponge count</td><td><input type="number" min="0" max="3" id="intra13" class="score-input"></td></tr>
-                </tbody>
-            </table>
+            <table class="w-full"><thead><th>Step</th><th>Score (0-3)</th></thead><tbody>
+                <tr><td>1. Proper positioning & asepsis</td><td><input type="number" min="0" max="3" id="intra1" class="score-input w-20"></td></tr>
+                <tr><td>2. Skin incision (type & level)</td><td><input type="number" min="0" max="3" id="intra2" class="score-input w-20"></td></tr>
+                <tr><td>3. Rectus sheath opening</td><td><input type="number" min="0" max="3" id="intra3" class="score-input w-20"></td></tr>
+                <tr><td>4. Bladder reflection</td><td><input type="number" min="0" max="3" id="intra4" class="score-input w-20"></td></tr>
+                <tr><td>5. Uterine incision</td><td><input type="number" min="0" max="3" id="intra5" class="score-input w-20"></td></tr>
+                <tr><td>6. Delivery of fetus</td><td><input type="number" min="0" max="3" id="intra6" class="score-input w-20"></td></tr>
+                <tr><td>7. Cord clamping & neonatal handover</td><td><input type="number" min="0" max="3" id="intra7" class="score-input w-20"></td></tr>
+                <tr><td>8. Placental delivery</td><td><input type="number" min="0" max="3" id="intra8" class="score-input w-20"></td></tr>
+                <tr><td>9. Uterine repair & hemostasis</td><td><input type="number" min="0" max="3" id="intra9" class="score-input w-20"></td></tr>
+                <tr><td>10. Control of bleeding</td><td><input type="number" min="0" max="3" id="intra10" class="score-input w-20"></td></tr>
+                <tr><td>11. Abdominal wall closure</td><td><input type="number" min="0" max="3" id="intra11" class="score-input w-20"></td></tr>
+                <tr><td>12. Instrument handling and knot tying</td><td><input type="number" min="0" max="3" id="intra12" class="score-input w-20"></td></tr>
+                <tr><td>13. Instrument & sponge count</td><td><input type="number" min="0" max="3" id="intra13" class="score-input w-20"></td></tr>
+            </tbody></table>
             <h3 class="font-semibold mt-4">Post‑operative Care</h3>
-            <table><thead><tr><th>Activity</th><th>Score (0-3)</th></tr></thead>
-                <tbody>
-                    <tr><td>1. Post-op orders & monitoring</td><td><input type="number" min="0" max="3" id="post1" class="score-input"></td></tr>
-                    <tr><td>2. Documentation & handover</td><td><input type="number" min="0" max="3" id="post2" class="score-input"></td></tr>
-                </tbody>
-            </table>
+            <table class="w-full"><thead><th>Activity</th><th>Score (0-3)</th></thead><tbody>
+                <tr><td>1. Post-op orders & monitoring</td><td><input type="number" min="0" max="3" id="post1" class="score-input w-20"></td></tr>
+                <tr><td>2. Documentation & handover</td><td><input type="number" min="0" max="3" id="post2" class="score-input w-20"></td></tr>
+            </tbody></table>
             <div class="mt-4"><label>Comments</label><textarea id="dopsComments" class="border p-2 w-full"></textarea></div>
             <div class="mt-4 flex gap-2">
                 <button type="button" id="saveDopsBtn" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
@@ -284,59 +292,57 @@
                 <div><label>From Date</label><input type="date" id="monthlyFrom" class="border p-2 w-full"></div>
                 <div><label>To Date</label><input type="date" id="monthlyTo" class="border p-2 w-full"></div>
             </div>
-            <h3 class="font-semibold mt-4">Competencies (1-8 scale for first six, 1-5 for last three)</h3>
+            <h3 class="font-semibold mt-4">Competencies</h3>
             <table class="w-full">
-                <thead><tr><th>Competency</th><th>Excellent</th><th>Good</th><th>Satisfactory</th><th>Needs Improvement</th></tr></thead>
+                <thead><th>Competency</th><th>Excellent</th><th>Good</th><th>Satisfactory</th><th>Needs Improvement</th></thead>
                 <tbody>
-                    <tr><td><strong>Medical Knowledge</strong><br><span class="competency-desc">(Pathophysiology, diagnosis, evidence-based practice)</span></td>
+                    <tr><td><strong>Medical Knowledge</strong><br><span class="competency-desc">(Pathophysiology, diagnosis)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp1" value="8">8</label><label><input type="radio" name="comp1" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp1" value="6">6</label><label><input type="radio" name="comp1" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp1" value="4">4</label><label><input type="radio" name="comp1" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp1" value="2">2</label><label><input type="radio" name="comp1" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Patient Assessment</strong><br><span class="competency-desc">(History, examination, differential diagnosis)</span></td>
+                    <tr><td><strong>Patient Assessment</strong><br><span class="competency-desc">(History, examination)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp2" value="8">8</label><label><input type="radio" name="comp2" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp2" value="6">6</label><label><input type="radio" name="comp2" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp2" value="4">4</label><label><input type="radio" name="comp2" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp2" value="2">2</label><label><input type="radio" name="comp2" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Clinical Decision Making</strong><br><span class="competency-desc">(Interpretation of data, formulation of mgt plans)</span></td>
+                    <tr><td><strong>Clinical Decision Making</strong><br><span class="competency-desc">(Interpretation of data)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp3" value="8">8</label><label><input type="radio" name="comp3" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp3" value="6">6</label><label><input type="radio" name="comp3" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp3" value="4">4</label><label><input type="radio" name="comp3" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp3" value="2">2</label><label><input type="radio" name="comp3" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Procedural/Surgical Skills</strong><br><span class="competency-desc">(Technical ability, asepsis, efficiency)</span></td>
+                    <tr><td><strong>Procedural/Surgical Skills</strong><br><span class="competency-desc">(Technical ability)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp4" value="8">8</label><label><input type="radio" name="comp4" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp4" value="6">6</label><label><input type="radio" name="comp4" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp4" value="4">4</label><label><input type="radio" name="comp4" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp4" value="2">2</label><label><input type="radio" name="comp4" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Emergency Management</strong><br><span class="competency-desc">(Response to obstetric/gynecologic emergencies)</span></td>
+                    <tr><td><strong>Emergency Management</strong><br><span class="competency-desc">(Response to emergencies)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp5" value="8">8</label><label><input type="radio" name="comp5" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp5" value="6">6</label><label><input type="radio" name="comp5" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp5" value="4">4</label><label><input type="radio" name="comp5" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp5" value="2">2</label><label><input type="radio" name="comp5" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Professionalism and Ethics</strong><br><span class="competency-desc">(Accountability, respect, confidentiality)</span></td>
+                    <tr><td><strong>Professionalism and Ethics</strong><br><span class="competency-desc">(Accountability, respect)</span></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp6" value="8">8</label><label><input type="radio" name="comp6" value="7">7</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp6" value="6">6</label><label><input type="radio" name="comp6" value="5">5</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp6" value="4">4</label><label><input type="radio" name="comp6" value="3">3</label></div></td>
                         <td><div class="radio-group"><label><input type="radio" name="comp6" value="2">2</label><label><input type="radio" name="comp6" value="1">1</label></div></td>
                     </tr>
-                    <tr><td><strong>Leadership and Teamwork</strong><br><span class="competency-desc">(Collaboration, initiative, adaptability)</span></td>
+                    <tr><td><strong>Leadership and Teamwork</strong><br><span class="competency-desc">(Collaboration, initiative)</span></td>
                         <td colspan="4"><div class="flex justify-center gap-4"><label><input type="radio" name="comp7" value="5">5</label><label><input type="radio" name="comp7" value="4">4</label><label><input type="radio" name="comp7" value="3">3</label><label><input type="radio" name="comp7" value="2">2</label><label><input type="radio" name="comp7" value="1">1</label></div></td>
                     </tr>
-                    <tr>
-                        <td><strong>Commitment to Learning</strong><br><span class="competency-desc">(Self-directed learning, feedback integration)</span></td>
+                    <tr><td><strong>Commitment to Learning</strong><br><span class="competency-desc">(Self-directed learning)</span></td>
                         <td colspan="4"><div class="flex justify-center gap-4"><label><input type="radio" name="comp8" value="5">5</label><label><input type="radio" name="comp8" value="4">4</label><label><input type="radio" name="comp8" value="3">3</label><label><input type="radio" name="comp8" value="2">2</label><label><input type="radio" name="comp8" value="1">1</label></div></td>
                     </tr>
-                    <tr>
-                        <td><strong>Patient Safety and Quality of Care</strong><br><span class="competency-desc">(Error recognition, reporting, safety culture)</span></td>
+                    <tr><td><strong>Patient Safety and Quality</strong><br><span class="competency-desc">(Error recognition)</span></td>
                         <td colspan="4"><div class="flex justify-center gap-4"><label><input type="radio" name="comp9" value="5">5</label><label><input type="radio" name="comp9" value="4">4</label><label><input type="radio" name="comp9" value="3">3</label><label><input type="radio" name="comp9" value="2">2</label><label><input type="radio" name="comp9" value="1">1</label></div></td>
                     </tr>
                 </tbody>
-             </table>
+            </table>
             <div class="mt-4"><label>Comments</label><textarea id="monthlyComments" class="border p-2 w-full"></textarea></div>
             <div class="mt-4 flex gap-2">
                 <button type="button" id="saveMonthlyBtn" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
@@ -360,9 +366,9 @@
             <p class="text-sm mb-2">Scale: 1=Not Accomplished, 2=Needs Development, 3=Acceptable, 4=Mostly Accomplished, 5=Accomplished, NA=Not Applicable</p>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead>运转<th>#</th><th>Criteria</th><th>Score (1-5 / NA)</th><th>Comments</th> </thead>
+                    <thead><th>#</th><th>Criteria</th><th>Score (1-5 / NA)</th><th>Comments</th></thead>
                     <tbody id="presentationCriteriaBody"></tbody>
-                 </table>
+                </table>
             </div>
             <div class="grid grid-cols-2 gap-4 mt-4">
                 <div><label>Evaluator's Name</label><input type="text" id="presentationEvalName" class="border p-2 w-full"></div>
@@ -378,13 +384,20 @@
 
 <script>
 // ============================================
-// SUPABASE CONFIGURATION - REPLACE WITH YOUR CREDENTIALS
+// SUPABASE CONFIGURATION - YOUR CREDENTIALS
 // ============================================
 const SUPABASE_URL = 'https://rnlutvfzmnnxihgwcymw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJubHV0dmZ6bW5ueGloZ3djeW13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjAxMDcsImV4cCI6MjA4OTc5NjEwN30.2RfFEacIgG2XnvVRBFjcTELO26nt4T3zJP3v8-0JgTM';
 
 // Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase initialized successfully');
+} catch (error) {
+    console.error('Supabase init error:', error);
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
 // ============================================
 // GLOBAL DATA STORES
@@ -400,9 +413,59 @@ let finalGrades = [];
 let currentUser = null;
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+function showLoading(show) {
+    const loader = document.getElementById('loadingIndicator');
+    if (loader) {
+        if (show) loader.classList.remove('hidden');
+        else loader.classList.add('hidden');
+    }
+}
+
+function updateSyncStatus(success, message) {
+    const statusDiv = document.getElementById('syncStatus');
+    if (!statusDiv) return;
+    if (success) {
+        statusDiv.style.backgroundColor = '#4CAF50';
+        statusDiv.innerHTML = `🟢 ${message || 'Connected'}`;
+        setTimeout(() => {
+            if (statusDiv.innerHTML.includes('Connected')) {
+                statusDiv.style.opacity = '0.6';
+            }
+        }, 3000);
+    } else {
+        statusDiv.style.backgroundColor = '#f44336';
+        statusDiv.innerHTML = `🔴 ${message || 'Error'}`;
+        statusDiv.style.opacity = '1';
+    }
+}
+
+function showSection(sectionId) {
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    const section = document.getElementById(sectionId);
+    if (section) section.style.display = 'block';
+}
+
+function showSectionForRole() {
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') {
+        showSection('adminSection');
+        loadAdminDashboard();
+    } else if (currentUser.role === 'evaluator') {
+        showSection('evaluatorSection');
+        loadEvaluatorDashboard();
+    } else if (currentUser.role === 'student') {
+        showSection('studentSection');
+        loadStudentDashboard();
+    }
+}
+
+// ============================================
 // DATABASE FUNCTIONS
 // ============================================
 async function loadAllData() {
+    showLoading(true);
     try {
         const [usersRes, studentsRes, evaluatorsRes, dopsRes, monthlyRes, presentationRes, attendanceRes, gradesRes] = await Promise.all([
             supabase.from('users').select('*'),
@@ -434,134 +497,59 @@ async function loadAllData() {
         finalGrades = gradesRes.data || [];
         
         updateSyncStatus(true, 'Data loaded');
+        showLoading(false);
         return true;
     } catch (error) {
         console.error('Error loading data:', error);
         updateSyncStatus(false, error.message);
+        showLoading(false);
         return false;
     }
 }
 
-function updateSyncStatus(success, message) {
-    const statusDiv = document.getElementById('syncStatus');
-    if (success) {
-        statusDiv.style.backgroundColor = '#4CAF50';
-        statusDiv.innerHTML = `🟢 ${message || 'Synced'}`;
-        setTimeout(() => {
-            if (statusDiv.innerHTML.includes('Synced')) {
-                statusDiv.style.opacity = '0.6';
-            }
-        }, 3000);
-    } else {
-        statusDiv.style.backgroundColor = '#f44336';
-        statusDiv.innerHTML = `🔴 ${message || 'Error'}`;
-        statusDiv.style.opacity = '1';
-    }
-}
-
 async function saveUser(user) {
-    const { error } = await supabase
-        .from('users')
-        .upsert(user, { onConflict: 'id' });
+    const { error } = await supabase.from('users').upsert(user, { onConflict: 'id' });
     if (error) throw error;
 }
 
 async function saveStudent(student) {
-    const { error } = await supabase
-        .from('students')
-        .upsert(student, { onConflict: 'id' });
+    const { error } = await supabase.from('students').upsert(student, { onConflict: 'id' });
     if (error) throw error;
 }
 
 async function saveEvaluator(evaluator) {
-    const { error } = await supabase
-        .from('evaluators')
-        .upsert(evaluator, { onConflict: 'id' });
+    const { error } = await supabase.from('evaluators').upsert(evaluator, { onConflict: 'id' });
     if (error) throw error;
 }
 
 async function saveDopsEval(evalData) {
-    const { error } = await supabase
-        .from('dops_evals')
-        .insert(evalData);
+    const { error } = await supabase.from('dops_evals').insert(evalData);
     if (error) throw error;
 }
 
 async function saveMonthlyEval(evalData) {
-    const { error } = await supabase
-        .from('monthly_evals')
-        .insert(evalData);
+    const { error } = await supabase.from('monthly_evals').insert(evalData);
     if (error) throw error;
 }
 
 async function savePresentationEval(evalData) {
-    const { error } = await supabase
-        .from('presentation_evals')
-        .insert(evalData);
+    const { error } = await supabase.from('presentation_evals').insert(evalData);
     if (error) throw error;
 }
 
 async function saveAttendanceRecord(record) {
-    const { error } = await supabase
-        .from('attendance_data')
-        .upsert(record, { onConflict: 'id' });
+    const { error } = await supabase.from('attendance_data').upsert(record, { onConflict: 'id' });
     if (error) throw error;
 }
 
 async function saveFinalGrade(grade) {
-    const { error } = await supabase
-        .from('final_grades')
-        .upsert(grade, { onConflict: 'id' });
+    const { error } = await supabase.from('final_grades').upsert(grade, { onConflict: 'id' });
     if (error) throw error;
 }
 
 async function deleteUserById(userId) {
-    const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+    const { error } = await supabase.from('users').delete().eq('id', userId);
     if (error) throw error;
-}
-
-async function saveAll() {
-    try {
-        for (let user of users) {
-            await saveUser(user);
-        }
-        for (let student of students) {
-            await saveStudent(student);
-        }
-        for (let evaluator of evaluators) {
-            await saveEvaluator(evaluator);
-        }
-        updateSyncStatus(true, 'All saved');
-    } catch (error) {
-        console.error('Error saving:', error);
-        updateSyncStatus(false, 'Save failed');
-        throw error;
-    }
-}
-
-// ============================================
-// UI FUNCTIONS (Preserved from original)
-// ============================================
-function showSection(sectionId) {
-    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-    document.getElementById(sectionId).style.display = 'block';
-}
-
-function showSectionForRole() {
-    if (!currentUser) return;
-    if (currentUser.role === 'admin') {
-        showSection('adminSection');
-        loadAdminDashboard();
-    } else if (currentUser.role === 'evaluator') {
-        showSection('evaluatorSection');
-        loadEvaluatorDashboard();
-    } else if (currentUser.role === 'student') {
-        showSection('studentSection');
-        loadStudentDashboard();
-    }
 }
 
 // ============================================
@@ -650,7 +638,7 @@ function loadDopsList() {
         const user = users.find(u => u.id === student?.user_id);
         const evaluator = evaluators.find(e => e.id === d.evaluator_id);
         const evalUser = users.find(u => u.id === evaluator?.user_id);
-        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} ${user?.last_name || ''} | <strong>Date:</strong> ${d.date} | <strong>Case:</strong> ${d.case_no} | <strong>Score:</strong> ${d.grand_total}/60 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
+        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} | <strong>Date:</strong> ${d.date} | <strong>Case:</strong> ${d.case_no} | <strong>Score:</strong> ${d.grand_total}/60 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
     });
 }
 
@@ -663,7 +651,7 @@ function loadMonthlyList() {
         const user = users.find(u => u.id === student?.user_id);
         const evaluator = evaluators.find(e => e.id === m.evaluator_id);
         const evalUser = users.find(u => u.id === evaluator?.user_id);
-        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} ${user?.last_name || ''} | <strong>Period:</strong> ${m.date_from} to ${m.date_to} | <strong>Score:</strong> ${m.total_score}/63 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
+        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} | <strong>Period:</strong> ${m.date_from} to ${m.date_to} | <strong>Score:</strong> ${m.total_score}/63 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
     });
 }
 
@@ -677,7 +665,7 @@ function loadPresentationList() {
         const evaluator = evaluators.find(e => e.id === p.evaluator_id);
         const evalUser = users.find(u => u.id === evaluator?.user_id);
         const total = p.scores?.reduce((sum, val) => sum + (val || 0), 0) || 0;
-        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} ${user?.last_name || ''} | <strong>Date:</strong> ${p.date} | <strong>Title:</strong> ${p.title} | <strong>Score:</strong> ${total}/90 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
+        container.innerHTML += `<div class="border p-2 mb-2"><strong>Student:</strong> ${user?.first_name || 'Unknown'} | <strong>Date:</strong> ${p.date} | <strong>Title:</strong> ${p.title} | <strong>Score:</strong> ${total}/90 | <strong>Evaluator:</strong> ${evalUser?.first_name || 'Unknown'}</div>`;
     });
 }
 
@@ -709,10 +697,7 @@ function loadAttendanceMatrix() {
 }
 
 window.removeAttendanceDate = async (date) => {
-    const { error } = await supabase
-        .from('attendance_data')
-        .delete()
-        .eq('date', date);
+    const { error } = await supabase.from('attendance_data').delete().eq('date', date);
     if (!error) {
         await loadAllData();
         loadAttendanceMatrix();
@@ -829,7 +814,8 @@ function loadFinalGrades() {
 // ============================================
 function loadEvaluatorDashboard() {
     populateStudentSelect('studentSelect');
-    document.getElementById('studentSelect')?.addEventListener('change', updateSelectedStudentPhoto);
+    const select = document.getElementById('studentSelect');
+    if (select) select.addEventListener('change', updateSelectedStudentPhoto);
     const photoImg = document.getElementById('selectedStudentPhoto');
     const noPhotoMsg = document.getElementById('noStudentPhotoMsg');
     if (photoImg) photoImg.classList.add('hidden');
@@ -994,45 +980,55 @@ function loadMyEvals() {
 function loadStudentDashboard() {
     const student = students.find(s => s.user_id === currentUser?.id);
     if (!student) {
-        document.getElementById('studentDops').innerText = 'No student profile';
+        const dopsDiv = document.getElementById('studentDops');
+        if (dopsDiv) dopsDiv.innerText = 'No student profile';
         return;
     }
     
     const photoImg = document.getElementById('studentPhotoImg');
     const photoMissing = document.getElementById('studentPhotoMissing');
-    if (student.photo) {
+    if (student.photo && photoImg) {
         photoImg.src = student.photo;
         photoImg.style.display = 'inline';
-        photoMissing.style.display = 'none';
+        if (photoMissing) photoMissing.style.display = 'none';
     } else {
-        photoImg.style.display = 'none';
-        photoMissing.style.display = 'block';
+        if (photoImg) photoImg.style.display = 'none';
+        if (photoMissing) photoMissing.style.display = 'block';
     }
     
     const studentDops = dopsEvals.filter(d => d.student_id === student.id);
-    document.getElementById('studentDops').innerHTML = studentDops.map(d => `<div class="border p-1 mb-1">${d.date} - ${d.type} - Score: ${d.grand_total}/60</div>`).join('') || 'None';
-    document.getElementById('studentDopsCount').innerText = studentDops.length;
+    const dopsDiv = document.getElementById('studentDops');
+    if (dopsDiv) dopsDiv.innerHTML = studentDops.map(d => `<div class="border p-1 mb-1">${d.date} - ${d.type} - Score: ${d.grand_total}/60</div>`).join('') || 'None';
+    const dopsCount = document.getElementById('studentDopsCount');
+    if (dopsCount) dopsCount.innerText = studentDops.length;
     
     const studentMonthly = monthlyEvals.filter(m => m.student_id === student.id);
-    document.getElementById('studentMonthly').innerHTML = studentMonthly.map(m => `<div class="border p-1 mb-1">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || 'None';
-    document.getElementById('studentMonthlyCount').innerText = studentMonthly.length;
+    const monthlyDiv = document.getElementById('studentMonthly');
+    if (monthlyDiv) monthlyDiv.innerHTML = studentMonthly.map(m => `<div class="border p-1 mb-1">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || 'None';
+    const monthlyCount = document.getElementById('studentMonthlyCount');
+    if (monthlyCount) monthlyCount.innerText = studentMonthly.length;
     
     const studentPres = presentationEvals.filter(p => p.student_id === student.id);
-    document.getElementById('studentPresentation').innerHTML = studentPres.map(p => `<div class="border p-1 mb-1">${p.date} - ${p.title} - Score: ${p.total_score}/90</div>`).join('') || 'None';
-    document.getElementById('studentPresCount').innerText = studentPres.length;
+    const presDiv = document.getElementById('studentPresentation');
+    if (presDiv) presDiv.innerHTML = studentPres.map(p => `<div class="border p-1 mb-1">${p.date} - ${p.title} - Score: ${p.total_score}/90</div>`).join('') || 'None';
+    const presCount = document.getElementById('studentPresCount');
+    if (presCount) presCount.innerText = studentPres.length;
     
     const studentAttendance = attendanceData.map(day => ({ date: day.date, status: day.records?.[student.id] })).filter(a => a.status && a.status !== 'NA');
-    document.getElementById('studentAttendance').innerHTML = studentAttendance.map(a => `<div class="border p-1 mb-1">${a.date} - ${a.status}</div>`).join('') || 'None';
+    const attendanceDiv = document.getElementById('studentAttendance');
+    if (attendanceDiv) attendanceDiv.innerHTML = studentAttendance.map(a => `<div class="border p-1 mb-1">${a.date} - ${a.status}</div>`).join('') || 'None';
     
     const averages = computeStudentAverages(student.id);
-    document.getElementById('studentAttendancePercent').innerText = averages.attendancePct.toFixed(1) + '%';
+    const attendancePercent = document.getElementById('studentAttendancePercent');
+    if (attendancePercent) attendancePercent.innerText = averages.attendancePct.toFixed(1) + '%';
     
     const composite = (averages.avgDops + averages.avgMonthly + averages.avgPres + averages.attendancePct) / 4;
     const compositeWeighted = composite * 0.25;
     const final = finalGrades.find(f => f.student_id === student.id) || { exam_score: 0, committee_points: 0 };
     const finalPercent = compositeWeighted + (final.exam_score || 0) + (final.committee_points || 0);
     let grade = finalPercent >= 85 ? 'Distinction' : (finalPercent >= 80 ? 'Good' : (finalPercent >= 70 ? 'Satisfactory' : 'Fail'));
-    document.getElementById('studentOverallGrade').innerHTML = `<strong>Final Grade:</strong> ${finalPercent.toFixed(1)}% (${grade})`;
+    const overallGrade = document.getElementById('studentOverallGrade');
+    if (overallGrade) overallGrade.innerHTML = `<strong>Final Grade:</strong> ${finalPercent.toFixed(1)}% (${grade})`;
 }
 
 // ============================================
@@ -1190,8 +1186,8 @@ document.getElementById('addUserBtn')?.addEventListener('click', async () => {
     
     await loadAllData();
     loadUsersTable();
-    document.getElementById('newUsername').value = '';
-    document.getElementById('newPassword').value = '';
+    if (document.getElementById('newUsername')) document.getElementById('newUsername').value = '';
+    if (document.getElementById('newPassword')) document.getElementById('newPassword').value = '';
     updateSyncStatus(true, 'User added');
 });
 
@@ -1241,8 +1237,8 @@ document.getElementById('saveAttendanceMatrixBtn')?.addEventListener('click', as
 document.getElementById('startDopsBtn')?.addEventListener('click', () => {
     const studentId = document.getElementById('studentSelect')?.value;
     if (!studentId) { alert('Select a student'); return; }
-    document.getElementById('dopsStudentId').value = studentId;
-    document.getElementById('dopsDate').value = new Date().toISOString().split('T')[0];
+    if (document.getElementById('dopsStudentId')) document.getElementById('dopsStudentId').value = studentId;
+    if (document.getElementById('dopsDate')) document.getElementById('dopsDate').value = new Date().toISOString().split('T')[0];
     document.querySelectorAll('#dopsForm .score-input').forEach(i => i.value = '');
     showSection('dopsFormContainer');
 });
@@ -1291,9 +1287,9 @@ document.getElementById('saveDopsBtn')?.addEventListener('click', async () => {
 document.getElementById('startMonthlyBtn')?.addEventListener('click', () => {
     const studentId = document.getElementById('studentSelect')?.value;
     if (!studentId) { alert('Select a student'); return; }
-    document.getElementById('monthlyStudentId').value = studentId;
-    document.getElementById('monthlyFrom').value = '';
-    document.getElementById('monthlyTo').value = '';
+    if (document.getElementById('monthlyStudentId')) document.getElementById('monthlyStudentId').value = studentId;
+    if (document.getElementById('monthlyFrom')) document.getElementById('monthlyFrom').value = '';
+    if (document.getElementById('monthlyTo')) document.getElementById('monthlyTo').value = '';
     document.querySelectorAll('#monthlyForm input[type=radio]').forEach(r => r.checked = false);
     showSection('monthlyFormContainer');
 });
@@ -1340,13 +1336,13 @@ document.getElementById('saveMonthlyBtn')?.addEventListener('click', async () =>
 document.getElementById('startPresentationBtn')?.addEventListener('click', () => {
     const studentId = document.getElementById('studentSelect')?.value;
     if (!studentId) { alert('Select a student'); return; }
-    document.getElementById('presentationStudentId').value = studentId;
-    document.getElementById('presentationDate').value = new Date().toISOString().split('T')[0];
-    document.getElementById('presentationPresenter').value = '';
-    document.getElementById('presentationTitle').value = '';
-    document.getElementById('presentationType').value = 'Lecture';
-    document.getElementById('presentationEvalName').value = '';
-    document.getElementById('presentationEvalSignature').value = '';
+    if (document.getElementById('presentationStudentId')) document.getElementById('presentationStudentId').value = studentId;
+    if (document.getElementById('presentationDate')) document.getElementById('presentationDate').value = new Date().toISOString().split('T')[0];
+    if (document.getElementById('presentationPresenter')) document.getElementById('presentationPresenter').value = '';
+    if (document.getElementById('presentationTitle')) document.getElementById('presentationTitle').value = '';
+    if (document.getElementById('presentationType')) document.getElementById('presentationType').value = 'Lecture';
+    if (document.getElementById('presentationEvalName')) document.getElementById('presentationEvalName').value = '';
+    if (document.getElementById('presentationEvalSignature')) document.getElementById('presentationEvalSignature').value = '';
     buildPresentationForm();
     showSection('presentationFormContainer');
 });
@@ -1407,7 +1403,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.replace('bg-blue-600', 'bg-gray-300'));
         e.target.classList.replace('bg-gray-300', 'bg-blue-600');
         document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-        document.getElementById(e.target.dataset.tab).classList.remove('hidden');
+        const target = document.getElementById(e.target.dataset.tab);
+        if (target) target.classList.remove('hidden');
         if (e.target.dataset.tab === 'adminFinalGrades') loadFinalGrades();
         if (e.target.dataset.tab === 'adminAttendance') loadAttendanceMatrix();
     });
@@ -1419,7 +1416,8 @@ document.querySelectorAll('.eval-tab-btn').forEach(btn => {
         document.querySelectorAll('.eval-tab-btn').forEach(b => b.classList.replace('bg-blue-600', 'bg-gray-300'));
         e.target.classList.replace('bg-gray-300', 'bg-blue-600');
         document.querySelectorAll('.eval-tab-content').forEach(c => c.classList.add('hidden'));
-        document.getElementById(e.target.dataset.evalTab).classList.remove('hidden');
+        const target = document.getElementById(e.target.dataset.evalTab);
+        if (target) target.classList.remove('hidden');
     });
 });
 
@@ -1427,10 +1425,14 @@ document.querySelectorAll('.eval-tab-btn').forEach(btn => {
 // INITIALIZATION
 // ============================================
 async function init() {
+    showLoading(true);
     await loadAllData();
+    showLoading(false);
     showSection('loginSection');
+    updateSyncStatus(true, 'Ready');
 }
 
+// Start the app
 init();
 </script>
 </body>
