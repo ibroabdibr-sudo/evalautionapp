@@ -15,8 +15,6 @@
         .btn { padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
         .btn-primary { background: #3b82f6; color: white; }
         .btn-primary:hover { background: #2563eb; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-danger:hover { background: #dc2626; }
         table { width: 100%; border-collapse: collapse; }
@@ -25,10 +23,11 @@
         .status-badge { position: fixed; bottom: 16px; right: 16px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 1000; }
         .stat-card { background: #f3f4f6; padding: 16px; border-radius: 12px; text-align: center; }
         .stat-number { font-size: 32px; font-weight: bold; color: #3b82f6; }
-        .tab { cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s; }
+        .tab { cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s; display: inline-block; }
         .tab-active { background: #3b82f6; color: white; }
         .tab-inactive { background: #e5e7eb; color: #374151; }
         .tab-inactive:hover { background: #d1d5db; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -80,9 +79,9 @@
         <!-- Admin Dashboard -->
         <div id="adminSection" class="section">
             <div class="flex gap-2 mb-6 flex-wrap">
-                <button class="tab tab-active" onclick="showAdminTab('users')">👥 Users</button>
-                <button class="tab tab-inactive" onclick="showAdminTab('stats')">📊 Statistics</button>
-                <button class="tab tab-inactive" onclick="showAdminTab('evaluations')">📋 Evaluations</button>
+                <button class="tab tab-active" onclick="window.showAdminTab('users')">👥 Users</button>
+                <button class="tab tab-inactive" onclick="window.showAdminTab('stats')">📊 Statistics</button>
+                <button class="tab tab-inactive" onclick="window.showAdminTab('evaluations')">📋 Evaluations</button>
             </div>
             
             <div id="adminUsersTab" class="tab-content">
@@ -154,18 +153,19 @@
     const SUPABASE_URL = 'https://rnlutvfzmnnxihgwcymw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJubHV0dmZ6bW5ueGloZ3djeW13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjAxMDcsImV4cCI6MjA4OTc5NjEwN30.2RfFEacIgG2XnvVRBFjcTELO26nt4T3zJP3v8-0JgTM';
     
-    let supabase;
-    let currentUser = null;
-    let usersData = [];
-    let studentsData = [];
-    let evaluatorsData = [];
-    let dopsData = [];
-    let monthlyData = [];
-    let presentationData = [];
+    // Global variables - no duplicate declarations
+    let supabaseClient = null;
+    let currentUserObj = null;
+    let usersList = [];
+    let studentsList = [];
+    let evaluatorsList = [];
+    let dopsList = [];
+    let monthlyList = [];
+    let presentationList = [];
     
     // Initialize
-    async function init() {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    async function initializeApp() {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         await loadAllData();
         showSection('loginSection');
         document.getElementById('statusBadge').innerHTML = '🟢 Connected';
@@ -176,23 +176,23 @@
     async function loadAllData() {
         try {
             const [usersRes, studentsRes, evaluatorsRes, dopsRes, monthlyRes, presentationRes] = await Promise.all([
-                supabase.from('users').select('*'),
-                supabase.from('students').select('*'),
-                supabase.from('evaluators').select('*'),
-                supabase.from('dops_evals').select('*'),
-                supabase.from('monthly_evals').select('*'),
-                supabase.from('presentation_evals').select('*')
+                supabaseClient.from('users').select('*'),
+                supabaseClient.from('students').select('*'),
+                supabaseClient.from('evaluators').select('*'),
+                supabaseClient.from('dops_evals').select('*'),
+                supabaseClient.from('monthly_evals').select('*'),
+                supabaseClient.from('presentation_evals').select('*')
             ]);
             
             if (usersRes.error) throw usersRes.error;
-            usersData = usersRes.data || [];
-            studentsData = studentsRes.data || [];
-            evaluatorsData = evaluatorsRes.data || [];
-            dopsData = dopsRes.data || [];
-            monthlyData = monthlyRes.data || [];
-            presentationData = presentationRes.data || [];
+            usersList = usersRes.data || [];
+            studentsList = studentsRes.data || [];
+            evaluatorsList = evaluatorsRes.data || [];
+            dopsList = dopsRes.data || [];
+            monthlyList = monthlyRes.data || [];
+            presentationList = presentationRes.data || [];
             
-            console.log('Data loaded:', { users: usersData.length, students: studentsData.length });
+            console.log('Data loaded:', { users: usersList.length, students: studentsList.length });
             return true;
         } catch (error) {
             console.error('Load error:', error);
@@ -212,8 +212,10 @@
     window.showAdminTab = function(tab) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
         document.getElementById(`admin${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`).classList.remove('hidden');
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active', 'tab-inactive'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.add('tab-inactive'));
+        document.querySelectorAll('.tab').forEach(t => {
+            t.classList.remove('tab-active', 'tab-inactive');
+            t.classList.add('tab-inactive');
+        });
         event.target.classList.remove('tab-inactive');
         event.target.classList.add('tab-active');
         
@@ -225,7 +227,8 @@
     // Display users table
     function displayUsersTable() {
         const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = usersData.map(u => `
+        if (!tbody) return;
+        tbody.innerHTML = usersList.map(u => `
             <tr>
                 <td>${u.id}</td>
                 <td><strong>${u.username}</strong></td>
@@ -237,10 +240,10 @@
     
     // Display statistics
     function displayStats() {
-        document.getElementById('totalUsers').innerText = usersData.length;
-        document.getElementById('totalStudents').innerText = studentsData.length;
-        document.getElementById('totalEvaluators').innerText = evaluatorsData.length;
-        document.getElementById('totalDOPS').innerText = dopsData.length;
+        document.getElementById('totalUsers').innerText = usersList.length;
+        document.getElementById('totalStudents').innerText = studentsList.length;
+        document.getElementById('totalEvaluators').innerText = evaluatorsList.length;
+        document.getElementById('totalDOPS').innerText = dopsList.length;
     }
     
     // Display all evaluations
@@ -249,86 +252,114 @@
         const monthlyDiv = document.getElementById('allMonthlyList');
         const presDiv = document.getElementById('allPresentationList');
         
-        dopsDiv.innerHTML = dopsData.map(d => `
-            <div class="border rounded p-3 bg-gray-50">
-                <strong>Student ID: ${d.student_id}</strong> | Date: ${d.date} | Score: ${d.grand_total}/60
-                <button class="btn btn-primary text-sm ml-2" onclick="downloadDopsPDF(${d.id})">📄 Download PDF</button>
-            </div>
-        `).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>';
+        if (dopsDiv) {
+            dopsDiv.innerHTML = dopsList.map(d => `
+                <div class="border rounded p-3 bg-gray-50">
+                    <strong>Student ID: ${d.student_id}</strong> | Date: ${d.date} | Score: ${d.grand_total}/60
+                    <button class="btn btn-primary text-sm ml-2" onclick="window.downloadDopsPDF(${d.id})">📄 Download PDF</button>
+                </div>
+            `).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>';
+        }
         
-        monthlyDiv.innerHTML = monthlyData.map(m => `
-            <div class="border rounded p-3 bg-gray-50">
-                <strong>Student ID: ${m.student_id}</strong> | Period: ${m.date_from} to ${m.date_to} | Score: ${m.total_score}/63
-            </div>
-        `).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>';
+        if (monthlyDiv) {
+            monthlyDiv.innerHTML = monthlyList.map(m => `
+                <div class="border rounded p-3 bg-gray-50">
+                    <strong>Student ID: ${m.student_id}</strong> | Period: ${m.date_from} to ${m.date_to} | Score: ${m.total_score}/63
+                </div>
+            `).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>';
+        }
         
-        presDiv.innerHTML = presentationData.map(p => `
-            <div class="border rounded p-3 bg-gray-50">
-                <strong>Student ID: ${p.student_id}</strong> | Title: ${p.title} | Score: ${p.total_score}/90
-            </div>
-        `).join('') || '<div class="text-gray-500">No presentation evaluations yet</div>';
+        if (presDiv) {
+            presDiv.innerHTML = presentationList.map(p => `
+                <div class="border rounded p-3 bg-gray-50">
+                    <strong>Student ID: ${p.student_id}</strong> | Title: ${p.title} | Score: ${p.total_score}/90
+                </div>
+            `).join('') || '<div class="text-gray-500">No presentation evaluations yet</div>';
+        }
     }
     
     // Display student dashboard
     function displayStudentDashboard() {
-        const student = studentsData.find(s => s.user_id === currentUser.id);
-        const user = usersData.find(u => u.id === currentUser.id);
+        const student = studentsList.find(s => s.user_id === currentUserObj.id);
+        const user = usersList.find(u => u.id === currentUserObj.id);
         
-        const myDops = dopsData.filter(d => d.student_id === student?.id);
-        const myMonthly = monthlyData.filter(m => m.student_id === student?.id);
-        const myPres = presentationData.filter(p => p.student_id === student?.id);
+        const myDops = dopsList.filter(d => d.student_id === student?.id);
+        const myMonthly = monthlyList.filter(m => m.student_id === student?.id);
+        const myPres = presentationList.filter(p => p.student_id === student?.id);
         
-        document.getElementById('studentInfo').innerHTML = `
-            <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
-            <p class="text-sm">Student ID: ${student?.student_id || 'Not assigned'}</p>
-        `;
-        document.getElementById('studentDopsCount').innerText = myDops.length;
-        document.getElementById('studentMonthlyCount').innerText = myMonthly.length;
-        document.getElementById('studentPresCount').innerText = myPres.length;
+        const studentInfo = document.getElementById('studentInfo');
+        if (studentInfo) {
+            studentInfo.innerHTML = `
+                <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
+                <p class="text-sm">Student ID: ${student?.student_id || 'Not assigned'}</p>
+            `;
+        }
         
-        document.getElementById('studentEvaluations').innerHTML = `
-            <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
-            ${myDops.map(d => `<div class="border rounded p-2 mb-2">${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
-            <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
-            ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
-            <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
-            ${myPres.map(p => `<div class="border rounded p-2 mb-2">${p.date} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
-        `;
+        const dopsCount = document.getElementById('studentDopsCount');
+        const monthlyCount = document.getElementById('studentMonthlyCount');
+        const presCount = document.getElementById('studentPresCount');
+        
+        if (dopsCount) dopsCount.innerText = myDops.length;
+        if (monthlyCount) monthlyCount.innerText = myMonthly.length;
+        if (presCount) presCount.innerText = myPres.length;
+        
+        const evaluationsDiv = document.getElementById('studentEvaluations');
+        if (evaluationsDiv) {
+            evaluationsDiv.innerHTML = `
+                <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
+                ${myDops.map(d => `<div class="border rounded p-2 mb-2">${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
+                <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
+                ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
+                <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
+                ${myPres.map(p => `<div class="border rounded p-2 mb-2">${p.date} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
+            `;
+        }
     }
     
     // Display evaluator dashboard
     function displayEvaluatorDashboard() {
-        const evaluator = evaluatorsData.find(e => e.user_id === currentUser.id);
-        const user = usersData.find(u => u.id === currentUser.id);
+        const evaluator = evaluatorsList.find(e => e.user_id === currentUserObj.id);
+        const user = usersList.find(u => u.id === currentUserObj.id);
         
-        const myDops = dopsData.filter(d => d.evaluator_id === evaluator?.id);
-        const myMonthly = monthlyData.filter(m => m.evaluator_id === evaluator?.id);
-        const myPres = presentationData.filter(p => p.evaluator_id === evaluator?.id);
+        const myDops = dopsList.filter(d => d.evaluator_id === evaluator?.id);
+        const myMonthly = monthlyList.filter(m => m.evaluator_id === evaluator?.id);
+        const myPres = presentationList.filter(p => p.evaluator_id === evaluator?.id);
         
-        document.getElementById('evaluatorInfo').innerHTML = `
-            <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
-            <p class="text-sm">${evaluator?.title || 'Evaluator'} ${evaluator?.department ? `- ${evaluator.department}` : ''}</p>
-        `;
-        document.getElementById('evalDopsCount').innerText = myDops.length;
-        document.getElementById('evalMonthlyCount').innerText = myMonthly.length;
-        document.getElementById('evalPresCount').innerText = myPres.length;
+        const evaluatorInfo = document.getElementById('evaluatorInfo');
+        if (evaluatorInfo) {
+            evaluatorInfo.innerHTML = `
+                <p class="font-bold text-lg">Welcome, ${user?.first_name || user?.username}!</p>
+                <p class="text-sm">${evaluator?.title || 'Evaluator'} ${evaluator?.department ? `- ${evaluator.department}` : ''}</p>
+            `;
+        }
         
-        document.getElementById('evaluatorEvaluations').innerHTML = `
-            <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
-            ${myDops.map(d => `<div class="border rounded p-2 mb-2">Student ${d.student_id} - ${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
-            <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
-            ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">Student ${m.student_id} - ${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
-            <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
-            ${myPres.map(p => `<div class="border rounded p-2 mb-2">Student ${p.student_id} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
-            <div class="mt-4 p-3 bg-yellow-50 rounded text-sm">
-                ⚡ Note: To create new evaluations, please use the full version with forms. This version displays existing data.
-            </div>
-        `;
+        const dopsCount = document.getElementById('evalDopsCount');
+        const monthlyCount = document.getElementById('evalMonthlyCount');
+        const presCount = document.getElementById('evalPresCount');
+        
+        if (dopsCount) dopsCount.innerText = myDops.length;
+        if (monthlyCount) monthlyCount.innerText = myMonthly.length;
+        if (presCount) presCount.innerText = myPres.length;
+        
+        const evaluationsDiv = document.getElementById('evaluatorEvaluations');
+        if (evaluationsDiv) {
+            evaluationsDiv.innerHTML = `
+                <h3 class="font-bold mb-2">📋 My DOPS Evaluations</h3>
+                ${myDops.map(d => `<div class="border rounded p-2 mb-2">Student ${d.student_id} - ${d.date} - Score: ${d.grand_total}/60</div>`).join('') || '<div class="text-gray-500">No DOPS evaluations yet</div>'}
+                <h3 class="font-bold mt-4 mb-2">📅 My Monthly Evaluations</h3>
+                ${myMonthly.map(m => `<div class="border rounded p-2 mb-2">Student ${m.student_id} - ${m.date_from} to ${m.date_to} - Score: ${m.total_score}/63</div>`).join('') || '<div class="text-gray-500">No monthly evaluations yet</div>'}
+                <h3 class="font-bold mt-4 mb-2">🎤 My Presentations</h3>
+                ${myPres.map(p => `<div class="border rounded p-2 mb-2">Student ${p.student_id} - "${p.title}" - Score: ${p.total_score}/90</div>`).join('') || '<div class="text-gray-500">No presentations yet</div>'}
+                <div class="mt-4 p-3 bg-yellow-50 rounded text-sm">
+                    ⚡ Note: To create new evaluations, please use the full version with forms. This version displays existing data.
+                </div>
+            `;
+        }
     }
     
     // PDF Download
     window.downloadDopsPDF = async function(id) {
-        const d = dopsData.find(x => x.id === id);
+        const d = dopsList.find(x => x.id === id);
         if (!d) return;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -345,16 +376,16 @@
     };
     
     // Login
-    async function login() {
+    async function handleLogin() {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const role = document.getElementById('role').value;
         
         await loadAllData();
-        const user = usersData.find(u => u.username === username && u.password === password && u.role === role);
+        const user = usersList.find(u => u.username === username && u.password === password && u.role === role);
         
         if (user) {
-            currentUser = user;
+            currentUserObj = user;
             document.getElementById('userName').innerHTML = `👤 ${user.first_name || user.username} (${user.role})`;
             document.getElementById('logoutBtn').classList.remove('hidden');
             
@@ -376,19 +407,19 @@
     }
     
     // Logout
-    function logout() {
-        currentUser = null;
+    function handleLogout() {
+        currentUserObj = null;
         document.getElementById('userName').innerHTML = '';
         document.getElementById('logoutBtn').classList.add('hidden');
         showSection('loginSection');
     }
     
     // Event listeners
-    document.getElementById('loginBtn').addEventListener('click', login);
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
     
     // Start app
-    init();
+    initializeApp();
     </script>
 </body>
 </html>
